@@ -36,8 +36,25 @@
 @include "funcs_http.awk";
 
 BEGIN {
+    # Esbozo de lo que se quiere. Lista indexada de ficheros de cada dominio.
+    LSTDM["www.dominio.com"]["/html/ejemplo.html"] = 0;
+
+    Opterr = 0;
+    Optind = 1;
+    while ((c = getopt(ARGC, ARGV, "c:")) != -1) {
+        switch (c) {
+        case "c":
+            opcn["ruta_conf"] = Optarg;
+            break;
+        case "?":
+        default:
+            usar();
+            break;
+        }
+    }
+
     delete lcfg;
-    lee_config("./ssdv.conf", lcfg);
+    lee_config(opcn["ruta_conf"], lcfg);
 
     fichero = "";
 
@@ -48,24 +65,31 @@ BEGIN {
 
     HttpVersion   = "HTTP/1.1";
 
-    # Bloquear ejecución (espera hasta que un cliente conecte)
-    printf "" |& tuboTcpIp;
-
     for (;;) {
-        tuboTcpIp |& getline;
+        # Leer línea de inicio y cabeceras de la petición
+        i = 0;
+        while ((tuboTcpIp |& getline) > 0) {
+            if (i++ < 1) {
+                liniHttp["metodo"] = $1;
+                liniHttp["objeto"] = $2;
+                liniHttp["vrsion"] = $3;
+                print liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
+            } else {
+                if (! gsub(/:/, "", $1))
+                    break;
+                cbptHttp[$1] = $2;
+            }
+        }
+
         print systime(), strftime();
-        print $3, $1, $2;
-        
-        liniHttp["metodo"] = $1;
-        liniHttp["objeto"] = $2;
-        liniHttp["vrsion"] = $3
+        print liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
 
         if (liniHttp["metodo"] != "GET") {
             HttpCodEstado = 405;
             HttpTxtEstado = "Método no permitido";
             fichero = "./html/405.html";
         }
-        else if (liniHttp["objeto"] != "/") {
+        else if (! (liniHttp["objeto"] in LSTDM["www.dominio.com"])) {
             HttpCodEstado = 404;
             HttpTxtEstado = "No Encontrado";
             fichero = "./html/404.html";
@@ -73,7 +97,7 @@ BEGIN {
         } else {
             HttpCodEstado = 200;
             HttpTxtEstado = "Vale";
-            fichero = ARGV[1];
+            fichero = "." liniHttp["objeto"];
         }
 
         printf "%s %s %s", HttpVersion, HttpCodEstado, HttpTxtEstado CRLF |& tuboTcpIp;

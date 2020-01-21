@@ -64,12 +64,14 @@ function envia_fichero_troceado(fichero, cxnTcpIp,      ln, hx, dc, tp)
     while ((getline ln[0] < fichero) > 0) {
         tp[0] = tp[0] ln[0] RS;
         dc = num_octetos(tp);
+        hx = sprintf("%x", dc);
         if (dc > MAX) {
-            hx = sprintf("%x", dc);
             printf "%s", hx CRLF tp[0] CRLF |& cxnTcpIp;
             tp[0] = "";
         }
     }
+    if (length(tp[0]))
+        printf "%s", hx CRLF tp[0] CRLF |& cxnTcpIp;
     close(fichero);
     printf "%s", 0 CRLF CRLF |& cxnTcpIp;
 }

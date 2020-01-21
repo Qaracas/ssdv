@@ -32,6 +32,69 @@
 
 @include "bbl_jdva.awk";
 
+# Ver:
+# https://www.gnu.org/software/gawk/manual/html_node/Getopt-Function.html
+#
+# getopt.awk --- Do C library getopt(3) function in awk
+#
+# External variables:
+#    Optind -- índice en ARGV del primer argumento sin opción
+#    Optarg -- cadena con el argumento de la opción actual
+#    Opterr -- si no es cero, pinta nuestro propio diagnóstico
+#    Optopt -- letras de la opción actual
+#
+# Returns:
+#    -1     al final de las opciones
+#    "?"    para opciones desconocidas
+#    <c>    caracter representando la opción actual
+#
+# Private Data:
+#    _opti  -- index in multiflag option, e.g., -abc
+#
+function getopt(argc, argv, options,    thisopt, i)
+{
+    if (length(options) == 0)
+        return -1;
+    if (argv[Optind] == "--") {
+        Optind++;
+        _opti = 0;
+        return -1;
+    } else if (argv[Optind] !~ /^-[^:[:space:]]/) {
+        _opti = 0;
+        return -1;
+    }
+    if (_opti == 0)
+        _opti = 2;
+    thisopt = substr(argv[Optind], _opti, 1);
+    Optopt = thisopt;
+    i = index(options, thisopt);
+    if (i == 0) {
+        if (Opterr)
+            printf("%c -- opción inválida\n", thisopt) > "/dev/stderr";
+        if (_opti >= length(argv[Optind])) {
+            Optind++;
+            _opti = 0;
+        } else
+            _opti++;
+        return "?";
+    }
+    if (substr(options, i + 1, 1) == ":") {
+        # get option argument
+        if (length(substr(argv[Optind], _opti + 1)) > 0)
+            Optarg = substr(argv[Optind], _opti + 1);
+        else
+            Optarg = argv[++Optind];
+        _opti = 0;
+    } else
+        Optarg = "";
+    if (_opti == 0 || _opti >= length(argv[Optind])) {
+        Optind++;
+        _opti = 0;
+    } else
+        _opti++;
+    return thisopt;
+}
+
 function lee_config(fichero_cfg, lst_cfg,      j, ln)
 {
     j[0] = "";
@@ -42,4 +105,11 @@ function lee_config(fichero_cfg, lst_cfg,      j, ln)
     close(fichero_cfg);
 
     jsonLstm(j, lst_cfg); 
+}
+
+function usar(opcion)
+{
+    printf ("%s\n%s\n", \
+        "opcion desconocida: " opcion \
+        "usar: ssdc [-c <ruta>]") > "/dev/stderr";
 }
