@@ -61,19 +61,18 @@ BEGIN {
     CRLF = RS = "\r\n";
 
     puerto = trae(lcfg, "general.puerto");
-    tuboTcpIp = "/inet/tcp/" puerto "/0/0";
+    canalTcpIP = "/inet/tcp/" puerto "/0/0";
 
     HttpVersion   = "HTTP/1.1";
 
     for (;;) {
         # Leer línea de inicio y cabeceras de la petición
         i = 0;
-        while ((tuboTcpIp |& getline) > 0) {
+        while ((canalTcpIP |& getline) > 0) {
             if (i++ < 1) {
                 liniHttp["metodo"] = $1;
                 liniHttp["objeto"] = $2;
                 liniHttp["vrsion"] = $3;
-                print liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
             } else {
                 if (! gsub(/:/, "", $1))
                     break;
@@ -81,8 +80,8 @@ BEGIN {
             }
         }
 
-        print systime(), strftime();
-        print liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
+        printf "* %s\n* %s\n", strftime(), cbptHttp["User-Agent"];
+        print "<", liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
 
         if (liniHttp["metodo"] != "GET") {
             HttpCodEstado = 405;
@@ -100,17 +99,15 @@ BEGIN {
             fichero = "." liniHttp["objeto"];
         }
 
-        printf "%s %s %s", HttpVersion, HttpCodEstado, HttpTxtEstado CRLF |& tuboTcpIp;
-        printf "Server: El servidor simple de Vargas/1.0" CRLF            |& tuboTcpIp;
-        printf "Content-Type: text/html;charset=UTF-8" CRLF               |& tuboTcpIp;
+        print "> " HttpVersion, HttpCodEstado, HttpTxtEstado;
+
+        printf "%s %s %s", HttpVersion, HttpCodEstado, HttpTxtEstado CRLF |& canalTcpIP;
+        printf "Server: El servidor simple de Vargas/1.0" CRLF            |& canalTcpIP;
+        printf "Content-Type: text/html;charset=UTF-8" CRLF               |& canalTcpIP;
 
         envia = STD[HttpCodEstado]["funcion"];
-        @envia(fichero, tuboTcpIp);
+        @envia(fichero, canalTcpIP);
 
-        # Ignorar cabeceras enviadas por el cliente
-        while ((tuboTcpIp |& getline) > 0)
-            ;
-
-        close(tuboTcpIp);
+        close(canalTcpIP);
     }
 }

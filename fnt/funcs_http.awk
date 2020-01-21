@@ -41,37 +41,37 @@ BEGIN{
     STD[405]["funcion"] = "envia_fichero";
 }
 
-function envia_texto(_texto, cxnTcpIp)
+function envia_texto(_texto, canalTcpIP)
 {
-    printf "%s", "Content-Length: " num_octetos(_texto) CRLF CRLF |& cxnTcpIp;
-    printf "%s", _texto[0] |& cxnTcpIp;
+    printf "%s", "Content-Length: " num_octetos(_texto) CRLF CRLF |& canalTcpIP;
+    printf "%s", _texto[0] |& canalTcpIP;
 }
 
-function envia_fichero(fichero, cxnTcpIp,      txt)
+function envia_fichero(fichero, canalTcpIP,      txt)
 {
     txt[0] = "";
     while ((getline txt[0] < fichero) > 0) {
         txt[0] = txt[0] RS;
     }
     close(fichero);
-    envia_texto(txt, cxnTcpIp)
+    envia_texto(txt, canalTcpIP)
 }
 
-function envia_fichero_troceado(fichero, cxnTcpIp,      ln, hx, dc, tp)
+function envia_fichero_troceado(fichero, canalTcpIP,      ln, hx, dc, tp)
 {
     ln[0] = "";
-    printf "%s", "Transfer-Encoding: chunked" CRLF CRLF |& cxnTcpIp;
+    printf "%s", "Transfer-Encoding: chunked" CRLF CRLF |& canalTcpIP;
     while ((getline ln[0] < fichero) > 0) {
         tp[0] = tp[0] ln[0] RS;
         dc = num_octetos(tp);
         hx = sprintf("%x", dc);
         if (dc > MAX) {
-            printf "%s", hx CRLF tp[0] CRLF |& cxnTcpIp;
+            printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
             tp[0] = "";
         }
     }
     if (length(tp[0]))
-        printf "%s", hx CRLF tp[0] CRLF |& cxnTcpIp;
+        printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
     close(fichero);
-    printf "%s", 0 CRLF CRLF |& cxnTcpIp;
+    printf "%s", 0 CRLF CRLF |& canalTcpIP;
 }
