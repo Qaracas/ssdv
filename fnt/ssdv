@@ -70,25 +70,25 @@ BEGIN {
         i = 0;
         while ((canalTcpIP |& getline) > 0) {
             if (i++ < 1) {
-                liniHttp["metodo"] = $1;
-                liniHttp["objeto"] = $2;
-                liniHttp["vrsion"] = $3;
+                lnInicioHttp["metodo"]   = $1;
+                lnInicioHttp["objetivo"] = $2;
+                lnInicioHttp["version"]  = $3;
             } else {
                 if (! gsub(/:/, "", $1))
                     break;
-                cbptHttp[$1] = $2;
+                cabeceraHttp[$1] = $2;
             }
         }
 
-        printf "* %s\n* %s\n", strftime(), cbptHttp["User-Agent"];
-        print "<", liniHttp["vrsion"], liniHttp["metodo"], liniHttp["objeto"];
+        printf "* %s\n* %s\n", strftime(), cabeceraHttp["User-Agent"];
+        print "<", lnInicioHttp["version"], lnInicioHttp["metodo"], lnInicioHttp["objetivo"];
 
-        if (liniHttp["metodo"] != "GET") {
+        if (lnInicioHttp["metodo"] != "GET") {
             HttpCodEstado = 405;
             HttpTxtEstado = "Método no permitido";
             fichero = "./html/405.html";
         }
-        else if (! (liniHttp["objeto"] in LSTDM["www.dominio.com"])) {
+        else if (! (lnInicioHttp["objetivo"] in LSTDM["www.dominio.com"])) {
             HttpCodEstado = 404;
             HttpTxtEstado = "No Encontrado";
             fichero = "./html/404.html";
@@ -96,10 +96,10 @@ BEGIN {
         } else {
             HttpCodEstado = 200;
             HttpTxtEstado = "Vale";
-            fichero = "." liniHttp["objeto"];
+            fichero = "." lnInicioHttp["objetivo"];
         }
 
-        print "> " HttpVersion, HttpCodEstado, HttpTxtEstado;
+        print ">", HttpVersion, HttpCodEstado, HttpTxtEstado;
 
         printf "%s %s %s", HttpVersion, HttpCodEstado, HttpTxtEstado CRLF |& canalTcpIP;
         printf "Server: El servidor simple de Vargas/1.0" CRLF            |& canalTcpIP;
