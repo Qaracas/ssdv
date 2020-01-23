@@ -33,37 +33,34 @@
 @include "funcs_util.awk";
 
 BEGIN{
-    CRLF = "\r\n";
-    MAX  = 512;
-    
-    STD[200]["funcion"] = "envia_fichero_troceado";
-    STD[404]["funcion"] = "envia_fichero";
-    STD[405]["funcion"] = "envia_fichero";
+    STD[200]["funcion"] = "EnviaTroceado_http";
+    STD[404]["funcion"] = "Envia_http";
+    STD[405]["funcion"] = "Envia_http";
 }
 
-function envia_texto(_texto, canalTcpIP)
+function EnviaTxt_http(_texto, canalTcpIP)
 {
-    printf "%s", "Content-Length: " num_octetos(_texto) CRLF CRLF |& canalTcpIP;
+    printf "%s", "Content-Length: " NumOctetos_util(_texto) CRLF CRLF |& canalTcpIP;
     printf "%s", _texto[0] |& canalTcpIP;
 }
 
-function envia_fichero(fichero, canalTcpIP,      txt)
+function Envia_http(fichero, canalTcpIP,      txt)
 {
     txt[0] = "";
     while ((getline txt[0] < fichero) > 0) {
         txt[0] = txt[0] RS;
     }
     close(fichero);
-    envia_texto(txt, canalTcpIP)
+    EnviaTxt_http(txt, canalTcpIP)
 }
 
-function envia_fichero_troceado(fichero, canalTcpIP,      ln, hx, dc, tp)
+function EnviaTroceado_http(fichero, canalTcpIP,      ln, hx, dc, tp)
 {
     ln[0] = "";
     printf "%s", "Transfer-Encoding: chunked" CRLF CRLF |& canalTcpIP;
     while ((getline ln[0] < fichero) > 0) {
         tp[0] = tp[0] ln[0] RS;
-        dc = num_octetos(tp);
+        dc = NumOctetos_util(tp);
         hx = sprintf("%x", dc);
         if (dc > MAX) {
             printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
@@ -74,4 +71,37 @@ function envia_fichero_troceado(fichero, canalTcpIP,      ln, hx, dc, tp)
         printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
     close(fichero);
     printf "%s", 0 CRLF CRLF |& canalTcpIP;
+}
+
+function IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP,      i)
+{
+    printf "%s %s %s", LineaEstRespHttp["version"], \
+                       LineaEstRespHttp["codigo"],  \
+                       LineaEstRespHttp["texto"] CRLF |& canalTcpIP;
+    for (i in CabeceraResHttp)
+        printf "%s: %s", i, CabeceraResHttp[i] CRLF |& canalTcpIP;
+}
+
+function EsperaPeticion_http(canalTcpIP,      i)
+{
+    i = 0;
+    while ((canalTcpIP |& getline) > 0) {
+        if (i++ < 1) {
+            LineaIniPetHttp["metodo"]   = $1;
+            LineaIniPetHttp["objetivo"] = $2;
+            LineaIniPetHttp["version"]  = $3;
+        } else {
+            if (! gsub(/:/, "", $1))
+                break;
+            CabeceraPetHttp[$1] = $2;
+        }
+    }
+}
+
+function Inicia_http()
+{
+    CRLF = RS = "\r\n";
+    MAX  = 512;
+    LineaIniPetHttp["version"]  = "HTTP/1.1";
+    LineaEstRespHttp["version"] = "HTTP/1.1";
 }

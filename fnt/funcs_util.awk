@@ -35,20 +35,20 @@ BEGIN {
         _ORD[sprintf("%c", n)] = n;
 }
 
-function es_ascii(ctr)
+function EsASCII_util(ctr)
 {
     if(!(ctr in _ORD) || _ORD[ctr] > 127)
         return 0;
     return 1;
 }
 
-function num_octetos(cadena,      c, i, j)
+function NumOctetos_util(cadena,      c, i, j)
 {
     i = j = 0;
     for (;;) {
         if ((c = substr(cadena[0], ++i, 1)) == "")
             return j;
-        if (!es_ascii(c))
+        if (!EsASCII_util(c))
             j = j + 2;
         else
             j++;

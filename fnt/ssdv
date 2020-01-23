@@ -41,71 +41,50 @@ BEGIN {
 
     Opterr = 0;
     Optind = 1;
-    while ((c = getopt(ARGC, ARGV, "c:")) != -1) {
-        switch (c) {
-        case "c":
-            opcn["ruta_conf"] = Optarg;
-            break;
-        case "?":
-        default:
-            usar();
-            break;
-        }
-    }
+    ProcesaOpciones_ssdv(ARGC, ARGV);
 
     delete lcfg;
-    lee_config(opcn["ruta_conf"], lcfg);
+    LeeConfiguracion_ssdv(Opcn["ruta_conf"], lcfg);
 
-    fichero = "";
-
-    CRLF = RS = "\r\n";
-
-    puerto = trae(lcfg, "general.puerto");
+    fichero    = "";
+    puerto     = trae(lcfg, "general.puerto");
     canalTcpIP = "/inet/tcp/" puerto "/0/0";
 
-    HttpVersion   = "HTTP/1.1";
+    Inicia_http();
 
     for (;;) {
-        # Leer línea de inicio y cabeceras de la petición
-        i = 0;
-        while ((canalTcpIP |& getline) > 0) {
-            if (i++ < 1) {
-                lnInicioHttp["metodo"]   = $1;
-                lnInicioHttp["objetivo"] = $2;
-                lnInicioHttp["version"]  = $3;
-            } else {
-                if (! gsub(/:/, "", $1))
-                    break;
-                cabeceraHttp[$1] = $2;
-            }
-        }
+        EsperaPeticion_http(canalTcpIP);
 
-        printf "* %s\n* %s\n", strftime(), cabeceraHttp["User-Agent"];
-        print "<", lnInicioHttp["version"], lnInicioHttp["metodo"], lnInicioHttp["objetivo"];
+        printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
+        print "<", LineaIniPetHttp["version"], \
+                   LineaIniPetHttp["metodo"],  \
+                   LineaIniPetHttp["objetivo"];
 
-        if (lnInicioHttp["metodo"] != "GET") {
-            HttpCodEstado = 405;
-            HttpTxtEstado = "Método no permitido";
+        if (LineaIniPetHttp["metodo"] != "GET") {
+            LineaEstRespHttp["codigo"] = 405;
+            LineaEstRespHttp["texto"]  = "Método no permitido";
             fichero = "./html/405.html";
         }
-        else if (! (lnInicioHttp["objetivo"] in LSTDM["www.dominio.com"])) {
-            HttpCodEstado = 404;
-            HttpTxtEstado = "No Encontrado";
+        else if (!(LineaIniPetHttp["objetivo"] in LSTDM["www.dominio.com"])) {
+            LineaEstRespHttp["codigo"] = 404;
+            LineaEstRespHttp["texto"]  = "No Encontrado";
             fichero = "./html/404.html";
 
         } else {
-            HttpCodEstado = 200;
-            HttpTxtEstado = "Vale";
-            fichero = "." lnInicioHttp["objetivo"];
+            LineaEstRespHttp["codigo"] = 200;
+            LineaEstRespHttp["texto"]  = "Vale";
+            fichero = "." LineaIniPetHttp["objetivo"];
         }
 
-        print ">", HttpVersion, HttpCodEstado, HttpTxtEstado;
+        CabeceraResHttp["Server"]       = "Servidor simple de Vargas/1.0";
+        CabeceraResHttp["Content-Type"] = "text/html;charset=UTF-8";
+        IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP);
 
-        printf "%s %s %s", HttpVersion, HttpCodEstado, HttpTxtEstado CRLF |& canalTcpIP;
-        printf "Server: El servidor simple de Vargas/1.0" CRLF            |& canalTcpIP;
-        printf "Content-Type: text/html;charset=UTF-8" CRLF               |& canalTcpIP;
+        print ">", LineaEstRespHttp["version"], \
+                   LineaEstRespHttp["codigo"],  \
+                   LineaEstRespHttp["texto"];
 
-        envia = STD[HttpCodEstado]["funcion"];
+        envia = STD[LineaEstRespHttp["codigo"]]["funcion"];
         @envia(fichero, canalTcpIP);
 
         close(canalTcpIP);

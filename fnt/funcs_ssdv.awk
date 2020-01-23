@@ -95,7 +95,22 @@ function getopt(argc, argv, options,    thisopt, i)
     return thisopt;
 }
 
-function lee_config(fichero_cfg, lst_cfg,      j, ln)
+function ProcesaOpciones_ssdv(argc, argv)
+{
+    while ((c = getopt(argc, argv, "c:")) != -1) {
+        switch (c) {
+        case "c":
+            Opcn["ruta_conf"] = Optarg;
+            break;
+        case "?":
+        default:
+            Usar_ssdv();
+            exit 1;
+        }
+    }
+}
+
+function LeeConfiguracion_ssdv(fichero_cfg, lst_cfg,      j, ln)
 {
     j[0] = "";
     ln = "";
@@ -107,7 +122,7 @@ function lee_config(fichero_cfg, lst_cfg,      j, ln)
     jsonLstm(j, lst_cfg); 
 }
 
-function usar(opcion)
+function Usar_ssdv(opcion)
 {
     printf ("%s\n%s\n", \
         "opcion desconocida: " opcion \
