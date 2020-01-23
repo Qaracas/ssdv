@@ -31,6 +31,7 @@
 # not, see <https://www.gnu.org/licenses/>.
 
 @include "bbl_jdva.awk";
+@include "tipos_de_medios.awk";
 
 # Ver:
 # https://www.gnu.org/software/gawk/manual/html_node/Getopt-Function.html
@@ -93,6 +94,22 @@ function getopt(argc, argv, options,    thisopt, i)
     } else
         _opti++;
     return thisopt;
+}
+
+function Indexar_contenido_ssdv(dominio, contenido,      ruta, prcs)
+{
+    contenido = "../../jdva";
+    prcs = "ls -lR " contenido;
+    while (prcs |& getline) {
+        if ($0 !~ /(:$|^-[rwx-]{9})/) continue;
+        if ($0 ~ /:$/) {
+            gsub(/:/, "/", $0);
+            gsub(contenido, "", $0);
+            ruta = $0;
+        } else {
+            LSTDM[dominio][ruta $NF] = 0;
+        }
+    }
 }
 
 function ProcesaOpciones_ssdv(argc, argv)

@@ -36,8 +36,7 @@
 @include "funcs_http.awk";
 
 BEGIN {
-    # Esbozo de lo que se quiere. Lista indexada de ficheros de cada dominio.
-    LSTDM["www.dominio.com"]["/html/ejemplo.html"] = 0;
+    Indexar_contenido_ssdv("www.dominio.com", "../../jdva");
 
     Opterr = 0;
     Optind = 1;
@@ -73,7 +72,7 @@ BEGIN {
         } else {
             LineaEstRespHttp["codigo"] = 200;
             LineaEstRespHttp["texto"]  = "Vale";
-            fichero = "." LineaIniPetHttp["objetivo"];
+            fichero = "../../jdva" LineaIniPetHttp["objetivo"];
         }
 
         CabeceraResHttp["Server"]       = "Servidor simple de Vargas/1.0";
