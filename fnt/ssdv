@@ -36,8 +36,6 @@
 @include "funcs_http.awk";
 
 BEGIN {
-    Indexar_contenido_ssdv("www.dominio.com", "../../jdva");
-
     Opterr = 0;
     Optind = 1;
     ProcesaOpciones_ssdv(ARGC, ARGV);
@@ -45,14 +43,24 @@ BEGIN {
     delete lcfg;
     LeeConfiguracion_ssdv(Opcn["ruta_conf"], lcfg);
 
+    i = 0;
+    while ((d = trae(lcfg, "dominio.[" ++i "].nombre")) != "")
+        Indexar_contenido_ssdv(d, \
+            trae(lcfg, "dominio.[" i "].ruta_contenido"));
+
     fichero    = "";
     puerto     = trae(lcfg, "general.puerto");
     canalTcpIP = "/inet/tcp/" puerto "/0/0";
 
     Inicia_http();
 
+    type
+
     for (;;) {
         EsperaPeticion_http(canalTcpIP);
+
+        nombre = CabeceraPetHttp["Host"];
+        gsub(/:[0-9]+$/,"", nombre);
 
         printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
         print "<", LineaIniPetHttp["version"], \
@@ -64,11 +72,15 @@ BEGIN {
             LineaEstRespHttp["texto"]  = "Método no permitido";
             fichero = "./html/405.html";
         }
-        else if (!(LineaIniPetHttp["objetivo"] in LSTDM["www.dominio.com"])) {
+        else if (!length(LSTDM[nombre])) {
             LineaEstRespHttp["codigo"] = 404;
             LineaEstRespHttp["texto"]  = "No Encontrado";
             fichero = "./html/404.html";
-
+        }
+        else if (!(LineaIniPetHttp["objetivo"] in LSTDM[nombre])) {
+            LineaEstRespHttp["codigo"] = 404;
+            LineaEstRespHttp["texto"]  = "No Encontrado";
+            fichero = "./html/404.html";
         } else {
             LineaEstRespHttp["codigo"] = 200;
             LineaEstRespHttp["texto"]  = "Vale";
@@ -76,7 +88,8 @@ BEGIN {
         }
 
         CabeceraResHttp["Server"]       = "Servidor simple de Vargas/1.0";
-        CabeceraResHttp["Content-Type"] = "text/html;charset=UTF-8";
+        CabeceraResHttp["Content-Type"] = \
+            LSTDM[nombre][LineaIniPetHttp["objetivo"]] ";" CODALF;
         IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP);
 
         print ">", LineaEstRespHttp["version"], \

@@ -98,7 +98,6 @@ function getopt(argc, argv, options,    thisopt, i)
 
 function Indexar_contenido_ssdv(dominio, contenido,      ruta, prcs)
 {
-    contenido = "../../jdva";
     prcs = "ls -lR " contenido;
     while (prcs |& getline) {
         if ($0 !~ /(:$|^-[rwx-]{9})/) continue;
@@ -107,9 +106,18 @@ function Indexar_contenido_ssdv(dominio, contenido,      ruta, prcs)
             gsub(contenido, "", $0);
             ruta = $0;
         } else {
-            LSTDM[dominio][ruta $NF] = 0;
+            LSTDM[dominio][ruta $NF] = _trae_tipo_medio($NF);
         }
     }
+}
+
+function _trae_tipo_medio(fichero,      ext)
+{
+    ext = substr($NF, index($NF, ".")+1, length($NF));
+    if (ext in LSTTM)
+        return LSTTM[ext];
+    else
+        return LSTTM["desconocido"];
 }
 
 function ProcesaOpciones_ssdv(argc, argv)

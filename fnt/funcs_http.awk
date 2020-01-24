@@ -33,6 +33,8 @@
 @include "funcs_util.awk";
 
 BEGIN{
+    CODALF = "charset=UTF-8";
+
     STD[200]["funcion"] = "EnviaTroceado_http";
     STD[404]["funcion"] = "Envia_http";
     STD[405]["funcion"] = "Envia_http";
