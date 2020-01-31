@@ -31,6 +31,7 @@
 # not, see <https://www.gnu.org/licenses/>.
 
 @include "funcs_util.awk";
+@load "leeflujo"
 
 BEGIN{
     CODALF = "charset=UTF-8";
@@ -46,32 +47,31 @@ function EnviaTxt_http(_texto, canalTcpIP)
     printf "%s", _texto[0] |& canalTcpIP;
 }
 
-function Envia_http(fichero, canalTcpIP,      txt)
+function Envia_http(fichero, canalTcpIP,      txt, r)
 {
     txt[0] = "";
+    TPM = 0; r = RS; RS = "\r?\n"
     while ((getline txt[0] < fichero) > 0) {
         txt[0] = txt[0] RS;
     }
     close(fichero);
+    RS = r;
     EnviaTxt_http(txt, canalTcpIP)
 }
 
-function EnviaTroceado_http(fichero, canalTcpIP,      ln, hx, dc, tp)
+function EnviaTroceado_http(fichero, canalTcpIP,      ln, hx, dc)
 {
     ln[0] = "";
     printf "%s", "Transfer-Encoding: chunked" CRLF CRLF |& canalTcpIP;
+    # (leeflujo) Leemos trozos de 512 octetos
+    TPM = MAX;
     while ((getline ln[0] < fichero) > 0) {
-        tp[0] = tp[0] ln[0] RS;
-        dc = NumOctetos_util(tp);
+        dc = NumOctetos_util(ln);
         hx = sprintf("%x", dc);
-        if (dc > MAX) {
-            printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
-            tp[0] = "";
-        }
+        printf "%s", hx CRLF ln[0] CRLF |& canalTcpIP;
     }
-    if (length(tp[0]))
-        printf "%s", hx CRLF tp[0] CRLF |& canalTcpIP;
     close(fichero);
+    TPM = 0;
     printf "%s", 0 CRLF CRLF |& canalTcpIP;
 }
 

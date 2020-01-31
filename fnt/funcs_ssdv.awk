@@ -135,14 +135,16 @@ function ProcesaOpciones_ssdv(argc, argv)
     }
 }
 
-function LeeConfiguracion_ssdv(fichero_cfg, lst_cfg,      j, ln)
+function LeeConfiguracion_ssdv(fichero_cfg, lst_cfg,      j, ln, r)
 {
     j[0] = "";
     ln = "";
-
+    
+    TPM = 0; r = RS; RS = "\r?\n"
     while ((getline ln < fichero_cfg) > 0)
         j[0] = j[0] ln;
     close(fichero_cfg);
+    RS = r;
 
     jsonLstm(j, lst_cfg); 
 }

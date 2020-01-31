@@ -49,8 +49,7 @@ BEGIN {
             trae(lcfg, "dominio.[" i "].ruta_contenido"));
 
     fichero    = "";
-    puerto     = trae(lcfg, "general.puerto");
-    canalTcpIP = "/inet/tcp/" puerto "/0/0";
+    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";
 
     Inicia_http();
 
