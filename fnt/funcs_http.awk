@@ -47,12 +47,12 @@ function EnviaTxt_http(_texto, canalTcpIP)
     printf "%s", _texto[0] |& canalTcpIP;
 }
 
-function Envia_http(fichero, canalTcpIP,      txt, r)
+function Envia_http(fichero, canalTcpIP,      ln, txt, r)
 {
     txt[0] = "";
     TPM = 0; r = RS; RS = "\r?\n"
-    while ((getline txt[0] < fichero) > 0) {
-        txt[0] = txt[0] RS;
+    while ((getline ln < fichero) > 0) {
+        txt[0] = txt[0] ln;
     }
     close(fichero);
     RS = r;
