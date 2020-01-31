@@ -44,22 +44,23 @@ BEGIN {
     LeeConfiguracion_ssdv(Opcn["ruta_conf"], lcfg);
 
     i = 0;
-    while ((d = trae(lcfg, "dominio.[" ++i "].nombre")) != "")
-        Indexar_contenido_ssdv(d, \
-            trae(lcfg, "dominio.[" i "].ruta_contenido"));
+    while ((dom = trae(lcfg, "dominio.[" ++i "].nombre")) != "") {
+        rut = trae(lcfg, "dominio.[" i "].ruta_contenido");
+        Indexar_contenido_ssdv(dom, rut);
+        LSTDR[dom] = rut;
+    }
 
     fichero    = "";
+    tpmedio    = "text/html";
     canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";
 
     Inicia_http();
 
-    type
-
     for (;;) {
         EsperaPeticion_http(canalTcpIP);
 
-        nombre = CabeceraPetHttp["Host"];
-        gsub(/:[0-9]+$/,"", nombre);
+        dominio = CabeceraPetHttp["Host"];
+        gsub(/:[0-9]+$/,"", dominio);
 
         printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
         print "<", LineaIniPetHttp["version"], \
@@ -71,24 +72,26 @@ BEGIN {
             LineaEstRespHttp["texto"]  = "Método no permitido";
             fichero = "./html/405.html";
         }
-        else if (!length(LSTDM[nombre])) {
+        else if (!length(LSTDM[dominio])) {
             LineaEstRespHttp["codigo"] = 404;
             LineaEstRespHttp["texto"]  = "No Encontrado";
+            tpmedio    = "text/html";
             fichero = "./html/404.html";
         }
-        else if (!(LineaIniPetHttp["objetivo"] in LSTDM[nombre])) {
+        else if (!(LineaIniPetHttp["objetivo"] in LSTDM[dominio])) {
             LineaEstRespHttp["codigo"] = 404;
             LineaEstRespHttp["texto"]  = "No Encontrado";
+            tpmedio    = "text/html";
             fichero = "./html/404.html";
         } else {
             LineaEstRespHttp["codigo"] = 200;
             LineaEstRespHttp["texto"]  = "Vale";
-            fichero = "../../jdva" LineaIniPetHttp["objetivo"];
+            tpmedio = LSTDM[dominio][LineaIniPetHttp["objetivo"]];
+            fichero = LSTDR[dominio] LineaIniPetHttp["objetivo"];
         }
 
         CabeceraResHttp["Server"]       = "Servidor simple de Vargas/1.0";
-        CabeceraResHttp["Content-Type"] = \
-            LSTDM[nombre][LineaIniPetHttp["objetivo"]] ";" CODALF;
+        CabeceraResHttp["Content-Type"] = tpmedio ";" CODALF;
         IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP);
 
         print ">", LineaEstRespHttp["version"], \
@@ -101,3 +104,4 @@ BEGIN {
         close(canalTcpIP);
     }
 }
+
