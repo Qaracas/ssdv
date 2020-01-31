@@ -14,7 +14,7 @@
  * Deberías haber recibido una copia de la Licencia Pública General
  * de GNU junto con este software; mira el fichero LICENSE. Si
  * no, mira <https://www.gnu.org/licenses/>.
-
+ *
  * Author: Ulpiano Tur de Vargas <ulpiano.tur.devargas@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
