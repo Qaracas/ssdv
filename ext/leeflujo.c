@@ -44,8 +44,8 @@ static const gawk_api_t *api;   /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
 static const char *ext_version = "extensión leetp: versión 1.0";
 
-static awk_bool_t inicia_leetope(void);
-static awk_bool_t (*init_func)(void) = inicia_leetope;
+static awk_bool_t inicia_leeflujo(void);
+static awk_bool_t (*init_func)(void) = inicia_leeflujo;
 
 int plugin_is_GPL_compatible;
 
@@ -159,19 +159,19 @@ lee_tomar_control_de(awk_input_buf_t *iobuf)
     return awk_true;
 }
 
-static awk_input_parser_t procesador_leetope = {
-    "leetope",
+static awk_input_parser_t procesador_leeflujo = {
+    "leeflujo",
     lee_puede_aceptar_fichero,
     lee_tomar_control_de,
     NULL
 };
 
-/* inicia_leetope --- Iniciar cosas */
+/* inicia_leeflujo --- Iniciar cosas */
 
 static awk_bool_t
-inicia_leetope()
+inicia_leeflujo()
 {
-    register_input_parser(& procesador_leetope);
+    register_input_parser(& procesador_leeflujo);
     return awk_true;
 }
 
@@ -183,4 +183,4 @@ static awk_ext_func_t lista_de_funciones[] = {
 
 /* Define función de carga */
 
-dl_load_func(lista_de_funciones, leetope, "")
+dl_load_func(lista_de_funciones, leeflujo, "")
