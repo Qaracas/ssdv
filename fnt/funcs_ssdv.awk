@@ -33,6 +33,26 @@
 @include "bbl_jdva.awk";
 @include "tipos_de_medios.awk";
 
+# Listas internas:
+#
+# Índice extensiones ficheros y tipos de medios:
+#
+#   LSTTM[<extensión fichero>] = <tipo de medio> 
+#       Ejem: LSTM["txt"] = "text/plain";
+#
+# Índice del contenido para cada dominio:
+#
+#   LSTDM[<dominio>][<ruta fichero>] = <tipo de medio>;
+#
+# Índice de acciones para cada estado HTTP:
+#
+#   LTEST[<código estado HTTP>]["funcion"] = "Envia_http";
+#
+# Índice dominios y rutas del contenido
+#
+#   LSTDR[<dominio>] = <ruta del contenido>;
+
+
 # Ver:
 # https://www.gnu.org/software/gawk/manual/html_node/Getopt-Function.html
 #
@@ -113,7 +133,7 @@ function Indexar_contenido_ssdv(dominio, contenido,      ruta, prcs)
 
 function _trae_tipo_medio(fichero,      ext)
 {
-    ext = substr($NF, index($NF, ".")+1, length($NF));
+    ext = substr($NF, index($NF, ".") + 1, length($NF));
     if (ext in LSTTM)
         return LSTTM[ext];
     else
