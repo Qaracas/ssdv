@@ -34,16 +34,26 @@
 @load "leeflujo"
 
 BEGIN{
-    CODALF = "charset=UTF-8";
+    VERSION = "HTTP/1.1";
+    CODALF  = "charset=UTF-8";
 
-    STD[200]["funcion"] = "EnviaTroceado_http";
-    STD[404]["funcion"] = "Envia_http";
-    STD[405]["funcion"] = "Envia_http";
+    LTEST[200]["funcion"] = "EnviaTroceado_http";
+    LTEST[200]["tpmedio"] = "";
+    LTEST[200]["fichero"] = "";
+
+    LTEST[404]["funcion"] = "Envia_http";
+    LTEST[404]["tpmedio"] = "text/html";
+    LTEST[404]["fichero"] = "./html/404.html";
+
+    LTEST[405]["funcion"] = "Envia_http";
+    LTEST[405]["tpmedio"] = "text/html";
+    LTEST[405]["fichero"] = "./html/405.html";
 }
 
 function EnviaTxt_http(_texto, canalTcpIP)
 {
-    printf "%s", "Content-Length: " NumOctetos_util(_texto) CRLF CRLF |& canalTcpIP;
+    printf "%s", "Content-Length: " NumOctetos_util(_texto) CRLF CRLF \
+        |& canalTcpIP;
     printf "%s", _texto[0] |& canalTcpIP;
 }
 
@@ -75,15 +85,6 @@ function EnviaTroceado_http(fichero, canalTcpIP,      ln, hx, dc)
     printf "%s", 0 CRLF CRLF |& canalTcpIP;
 }
 
-function IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP,      i)
-{
-    printf "%s %s %s", LineaEstRespHttp["version"], \
-                       LineaEstRespHttp["codigo"],  \
-                       LineaEstRespHttp["texto"] CRLF |& canalTcpIP;
-    for (i in CabeceraResHttp)
-        printf "%s: %s", i, CabeceraResHttp[i] CRLF |& canalTcpIP;
-}
-
 function EsperaPeticion_http(canalTcpIP,      i)
 {
     i = 0;
@@ -100,10 +101,63 @@ function EsperaPeticion_http(canalTcpIP,      i)
     }
 }
 
+function ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp,      dominio)
+{
+    dominio = CabeceraPetHttp["Host"];
+    gsub(/:[0-9]+$/,"", dominio);
+
+    printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
+    print "<", LineaIniPetHttp["version"], \
+               LineaIniPetHttp["metodo"],  \
+               LineaIniPetHttp["objetivo"];
+
+    if (LineaIniPetHttp["version"] == ""   \
+        || LineaIniPetHttp["metodo"] == "" \
+        || LineaIniPetHttp["objetivo"] == "") {
+        LineaEstResHttp["codigo"] = 400;
+        LineaEstResHttp["texto"]  = "Petición incorrecta";
+    }
+    else if (LineaIniPetHttp["metodo"] != "GET") {
+        LineaEstResHttp["codigo"] = 405;
+        LineaEstResHttp["texto"]  = "Método no permitido";
+    }
+    else if (!length(LSTDM[dominio])) {
+        LineaEstResHttp["codigo"] = 404;
+        LineaEstResHttp["texto"]  = "No Encontrado";
+    }
+    else if (!(LineaIniPetHttp["objetivo"] in LSTDM[dominio])) {
+        LineaEstResHttp["codigo"] = 404;
+        LineaEstResHttp["texto"]  = "No Encontrado";
+    } else {
+        LineaEstResHttp["codigo"] = 200;
+        LineaEstResHttp["texto"]  = "Vale";
+        LTEST[200]["tpmedio"] = LSTDM[dominio][LineaIniPetHttp["objetivo"]];
+        LTEST[200]["fichero"] = LSTDR[dominio] LineaIniPetHttp["objetivo"];
+    }
+}
+
+function EnviaRespuesta_http(LineaEstResHttp, canalTcpIP,      i, f, c)
+{
+    c = LineaEstResHttp["codigo"];
+    print ">", LineaEstResHttp["version"], c, LineaEstResHttp["texto"];
+
+    CabeceraResHttp["Server"] = "Servidor simple de Vargas/1.0";
+    CabeceraResHttp["Content-Type"] = LTEST[c]["tpmedio"] ";" CODALF;
+
+    printf "%s %s %s", LineaEstResHttp["version"], c, \
+        LineaEstResHttp["texto"] CRLF |& canalTcpIP;
+
+    for (i in CabeceraResHttp)
+        printf "%s: %s", i, CabeceraResHttp[i] CRLF |& canalTcpIP;
+
+    f = LTEST[c]["funcion"];
+    @f(LTEST[c]["fichero"], canalTcpIP);
+}
+
 function Inicia_http()
 {
     CRLF = RS = "\r\n";
     MAX  = 512;
-    LineaIniPetHttp["version"]  = "HTTP/1.1";
-    LineaEstRespHttp["version"] = "HTTP/1.1";
+    LineaIniPetHttp["version"] = VERSION;
+    LineaEstResHttp["version"] = VERSION;
 }
