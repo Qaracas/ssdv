@@ -35,6 +35,8 @@
 @include "funcs_ssdv.awk";
 @include "funcs_http.awk";
 
+@load "fork"
+
 BEGIN {
     Opterr = 0;
     Optind = 1;
@@ -50,58 +52,48 @@ BEGIN {
         LSTDR[dom] = rut;
     }
 
-    fichero    = "";
-    tpmedio    = "text/html";
-    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";
-
     Inicia_http();
 
+    for (i = 0; i < 3; i++)
+        p[i] = Crea_proceso();
+
+    wait();
+}
+
+function Crea_proceso(pid)
+{
+    if ((pid = fork()) == 0)
+        Un_proceso();
+
+    return pid;
+}
+
+function Un_proceso(canalTcpIP)
+{
+    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";
     for (;;) {
+        print "Esperando", PROCINFO["pid"];
+        # Genera LineaIniPetHttp, CabeceraPetHttp
+        PROCINFO[canalTcpIP, "RETRY"];
+        PROCINFO[Service, "READ_TIMEOUT"] = 100;
         EsperaPeticion_http(canalTcpIP);
 
-        dominio = CabeceraPetHttp["Host"];
-        gsub(/:[0-9]+$/,"", dominio);
+        # Genera LineaEstResHttp
+        ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp);
 
-        printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
-        print "<", LineaIniPetHttp["version"], \
-                   LineaIniPetHttp["metodo"],  \
-                   LineaIniPetHttp["objetivo"];
-
-        if (LineaIniPetHttp["metodo"] != "GET") {
-            LineaEstRespHttp["codigo"] = 405;
-            LineaEstRespHttp["texto"]  = "Método no permitido";
-            fichero = "./html/405.html";
-        }
-        else if (!length(LSTDM[dominio])) {
-            LineaEstRespHttp["codigo"] = 404;
-            LineaEstRespHttp["texto"]  = "No Encontrado";
-            tpmedio    = "text/html";
-            fichero = "./html/404.html";
-        }
-        else if (!(LineaIniPetHttp["objetivo"] in LSTDM[dominio])) {
-            LineaEstRespHttp["codigo"] = 404;
-            LineaEstRespHttp["texto"]  = "No Encontrado";
-            tpmedio    = "text/html";
-            fichero = "./html/404.html";
-        } else {
-            LineaEstRespHttp["codigo"] = 200;
-            LineaEstRespHttp["texto"]  = "Vale";
-            tpmedio = LSTDM[dominio][LineaIniPetHttp["objetivo"]];
-            fichero = LSTDR[dominio] LineaIniPetHttp["objetivo"];
+        if (LineaEstResHttp["codigo"] == 400) {
+            print LineaEstResHttp["texto"], ". Ignorar...";
+            system("sleep 10");
+            fflush(canalTcpIP);
+            #close(canalTcpIP);
+            continue;
         }
 
-        CabeceraResHttp["Server"]       = "Servidor simple de Vargas/1.0";
-        CabeceraResHttp["Content-Type"] = tpmedio ";" CODALF;
-        IniciaRespuesta_http(LineaEstRespHttp, CabeceraResHttp, canalTcpIP);
+        system("sleep 10");
 
-        print ">", LineaEstRespHttp["version"], \
-                   LineaEstRespHttp["codigo"],  \
-                   LineaEstRespHttp["texto"];
-
-        envia = STD[LineaEstRespHttp["codigo"]]["funcion"];
-        @envia(fichero, canalTcpIP);
+        # Genera CabeceraResHttp
+        EnviaRespuesta_http(LineaEstResHttp, canalTcpIP);
 
         close(canalTcpIP);
     }
 }
-
