@@ -261,7 +261,7 @@ static awk_ext_func_t lista_de_funciones[] = {
 static awk_ext_func_t lista_de_funciones[] = {
     { "trae_es", haz_trae_es, 0 },
     { "sondea",  haz_sondea,  0 },
-    { "vigila",  haz_vigila, 0  },
+    { "vigila",  haz_vigila,  0 },
 };
 #endif
 
