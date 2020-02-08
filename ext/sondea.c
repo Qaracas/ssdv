@@ -34,10 +34,12 @@
 
 #define TIEMPOMUERTO 5
 
-#define _GNU_SOURCE         /* Ver feature_test_macros(7) */
-#include <poll.h>
-#include <assert.h>
+
+#include <stdio.h>
 #include <errno.h>
+#include <assert.h>
+
+#include <sys/stat.h>
 
 #include "gawkapi.h"
 
@@ -51,14 +53,19 @@ int plugin_is_GPL_compatible;
 
 /* haz_espera --- proporciona función poll cargada dinámicamente */
 
+#ifdef AWK
 static awk_value_t *
 haz_espera(int nargs, awk_value_t *result, struct awk_ext_func *unused)
+#else
+static awk_value_t *
+haz_espera(int nargs, awk_value_t *result)
+#endif
 {
     int ret;
-    struct pollfd dsf[2];
+//    struct pollfd dsf[2];
     awk_value_t fichero, tipo;
-    const awk_input_buf_t *entrada;
-    const awk_output_buf_t *salida;
+//    const awk_input_buf_t *entrada;
+//    const awk_output_buf_t *salida;
 
     assert(result != NULL);
 
@@ -69,32 +76,32 @@ haz_espera(int nargs, awk_value_t *result, struct awk_ext_func *unused)
     }
 
     /* */
-    if (   ! get_argument(0, AWK_STRING, & fichero)
-        || ! get_argument(1, AWK_STRING, & tipo))
+    if (   ! get_argument(0, AWK_STRING, &fichero)
+        || ! get_argument(1, AWK_STRING, &tipo))
     {
         lintwarn(ext_id, "espera: parámetros incorrectos");
         return make_number(-2, result);
     }
     
 
-    if ( ! get_file(fichero.str_value.str, fichero.str_value.len,
-                    tipo.str_value.str, -1, &entrada, &salida))
-    {
-        update_ERRNO_int(EIO);
-        update_ERRNO_string("Error de E/S");
-        lintwarn(ext_id, "espera: error obteniendo información de E/S");
-        return make_number(-2, result);
-    }
+//    if ( ! get_file(fichero.str_value.str, fichero.str_value.len,
+//                    tipo.str_value.str, -1, &entrada, &salida))
+//    {
+//        update_ERRNO_int(EIO);
+//        update_ERRNO_string("Error de E/S");
+//        lintwarn(ext_id, "espera: error obteniendo información de E/S");
+//        return make_number(-2, result);
+//    }
 
 	/* averigua si es posible leer */
-	dsf[0].fd = entrada->fd;
-	dsf[0].events = POLLIN;
+//	dsf[0].fd = entrada->fd;
+//	dsf[0].events = POLLIN;
 
 	/* averigua si es posible escribir */
-	dsf[1].fd = salida->fd;
-	dsf[1].events = POLLOUT;
+//	dsf[1].fd = salida->fd;
+//	dsf[1].events = POLLOUT;
 
-    ret = poll(&dsf, 2, TIEMPOMUERTO * 1000);
+//    ret = poll(&dsf, 2, TIEMPOMUERTO * 1000);
 
     if (ret == 0) {
         update_ERRNO_int(ENOENT);
@@ -110,9 +117,15 @@ haz_espera(int nargs, awk_value_t *result, struct awk_ext_func *unused)
     return make_number(ret, result);
 }
 
+#ifdef AWK
 static awk_ext_func_t lista_de_funciones[] = {
 	{ "espera", haz_espera, 0, 0, awk_false, NULL },
 };
+#else
+static awk_ext_func_t lista_de_funciones[] = {
+	{ "espera", haz_espera, 0 },
+};
+#endif
 
 /* Define función de carga */
 

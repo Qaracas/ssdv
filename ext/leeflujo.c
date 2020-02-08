@@ -34,7 +34,6 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <string.h>
 
 #include <sys/stat.h>
 
@@ -59,10 +58,16 @@ typedef struct fichero_abierto {
 
 /* trae_registro --- Lee cada vez hasta MAX octetos */
 
+#ifdef AWK
 static int
 trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         char **rt_start, size_t *rt_len,
         const awk_fieldwidth_info_t **unused)
+#else
+static int
+trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
+        char **rt_start, size_t *rt_len)
+#endif
 {
     int ltd = 0;
     t_fichero_abierto *fichero;
@@ -142,8 +147,7 @@ lee_tomar_control_de(awk_input_buf_t *iobuf)
     if (flujo == NULL) {
         update_ERRNO_int(ENOENT);
         update_ERRNO_string("No existe fichero");
-        warning(ext_id, "lee_tomar_control_de: error abriendo fichero: %s",
-                strerror(errno));
+        warning(ext_id, "lee_tomar_control_de: error abriendo fichero");
         return awk_false;
     }
     emalloc(fichero, t_fichero_abierto *,
@@ -177,9 +181,16 @@ inicia_leeflujo()
 
 /* No se proporcionan nuevas funciones */
 
+#ifdef AWK
 static awk_ext_func_t lista_de_funciones[] = {
     { NULL, NULL, 0, 0, awk_false, NULL }
 };
+#else
+static awk_ext_func_t lista_de_funciones[] = {
+    { NULL, NULL, 0 }
+};
+#endif
+
 
 /* Define función de carga */
 
