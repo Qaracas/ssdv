@@ -113,7 +113,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
 
     if (entrada == NULL || salida == NULL) {
         update_ERRNO_int(EIO);
-        update_ERRNO_string("tra_es: error de E/S");
+        update_ERRNO_string("trae_es: error de E/S");
         lintwarn(ext_id, "trae_es: error trayendo descriptores de E/S");
         return make_number(-1, resultado);
     }
