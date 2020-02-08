@@ -253,14 +253,14 @@ haz_vigila(int nargs, awk_value_t *resultado)
 
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-	{ "trae_es", haz_trae_es, 0, 0, awk_false, NULL },
-	{ "sondea",  haz_sondea,  0, 0, awk_false, NULL },
+    { "trae_es", haz_trae_es, 0, 0, awk_false, NULL },
+    { "sondea",  haz_sondea,  0, 0, awk_false, NULL },
     { "vigila",  haz_vigila,  0, 0, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-	{ "trae_es", haz_trae_es, 0 },
-	{ "sondea",  haz_sondea,  0 },
+    { "trae_es", haz_trae_es, 0 },
+    { "sondea",  haz_sondea,  0 },
     { "vigila",  haz_vigila, 0  },
 };
 #endif
