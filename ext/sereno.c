@@ -205,7 +205,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
 
     /* Sólo acept 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "vigila: nº e argumentos incorrecto");
+        lintwarn(ext_id, "vigila: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
