@@ -49,7 +49,7 @@
 
 static const gawk_api_t *api;	/* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
-static const char *ext_version = "extensiÃ³n sereno E/S: versiÃ³n 1.0";
+static const char *ext_version = "extensión sereno E/S: versión 1.0";
 
 static awk_bool_t (*init_func)(void) = NULL;
 
