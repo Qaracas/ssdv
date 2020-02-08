@@ -36,6 +36,7 @@
 @include "funcs_http.awk";
 
 @load "fork"
+@load "sereno"
 
 BEGIN {
     Opterr = 0;
@@ -54,42 +55,37 @@ BEGIN {
 
     Inicia_http();
 
-    for (i = 0; i < 3; i++)
-        p[i] = Crea_proceso();
+    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";    
+
+    max = trae(lcfg, "general.numero_maximo_hilos");
+    for (i = 0; i < max; i++)
+        p[i] = Crea_proceso(canalTcpIP);
 
     wait();
 }
 
-function Crea_proceso(pid)
+function Crea_proceso(canalTcpIP,      pid)
 {
     if ((pid = fork()) == 0)
-        Un_proceso();
+        Un_proceso(canalTcpIP);
 
     return pid;
 }
 
-function Un_proceso(canalTcpIP)
+function Un_proceso(canalTcpIP,      EntSal)
 {
-    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";
     for (;;) {
-        print "Esperando", PROCINFO["pid"];
+        # Sondea E/S. Espera hasta poder leer y escribir en canal TCP/IP
+	    delete EntSal;
+        trae_es(canalTcpIP, "|&", EntSal);
+        sondea(EntSal);
+	    #vigila(EntSal);
+
         # Genera LineaIniPetHttp, CabeceraPetHttp
-        PROCINFO[canalTcpIP, "RETRY"];
-        PROCINFO[Service, "READ_TIMEOUT"] = 100;
-        EsperaPeticion_http(canalTcpIP);
+        LeePeticion_http(canalTcpIP);
 
         # Genera LineaEstResHttp
         ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp);
-
-        if (LineaEstResHttp["codigo"] == 400) {
-            print LineaEstResHttp["texto"], ". Ignorar...";
-            system("sleep 10");
-            fflush(canalTcpIP);
-            #close(canalTcpIP);
-            continue;
-        }
-
-        system("sleep 10");
 
         # Genera CabeceraResHttp
         EnviaRespuesta_http(LineaEstResHttp, canalTcpIP);
