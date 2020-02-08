@@ -32,6 +32,8 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#define API_AWK_V2 1
+
 #include <stdio.h>
 #include <errno.h>
 
@@ -58,7 +60,7 @@ typedef struct fichero_abierto {
 
 /* trae_registro --- Lee cada vez hasta MAX octetos */
 
-#ifdef AWK
+#ifdef API_AWK_V2
 static int
 trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         char **rt_start, size_t *rt_len,
@@ -181,7 +183,7 @@ inicia_leeflujo()
 
 /* No se proporcionan nuevas funciones */
 
-#ifdef AWK
+#ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
     { NULL, NULL, 0, 0, awk_false, NULL }
 };
