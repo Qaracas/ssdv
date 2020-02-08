@@ -85,7 +85,7 @@ function EnviaTroceado_http(fichero, canalTcpIP,      ln, hx, dc)
     printf "%s", 0 CRLF CRLF |& canalTcpIP;
 }
 
-function EsperaPeticion_http(canalTcpIP,      i)
+function LeePeticion_http(canalTcpIP,      i)
 {
     i = 0;
     while ((canalTcpIP |& getline) > 0) {
@@ -106,10 +106,11 @@ function ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp,      dominio)
     dominio = CabeceraPetHttp["Host"];
     gsub(/:[0-9]+$/,"", dominio);
 
-    printf "* %s\n* %s\n", strftime(), CabeceraPetHttp["User-Agent"];
-    print "<", LineaIniPetHttp["version"], \
-               LineaIniPetHttp["metodo"],  \
-               LineaIniPetHttp["objetivo"];
+    print "[" PROCINFO["pid"] "]", "*", strftime();
+    print "[" PROCINFO["pid"] "]", "*", CabeceraPetHttp["User-Agent"];
+    print "[" PROCINFO["pid"] "]", "<", LineaIniPetHttp["version"], \
+                LineaIniPetHttp["metodo"],                          \
+                LineaIniPetHttp["objetivo"];
 
     if (LineaIniPetHttp["version"] == ""   \
         || LineaIniPetHttp["metodo"] == "" \
@@ -139,7 +140,9 @@ function ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp,      dominio)
 function EnviaRespuesta_http(LineaEstResHttp, canalTcpIP,      i, f, c)
 {
     c = LineaEstResHttp["codigo"];
-    print ">", LineaEstResHttp["version"], c, LineaEstResHttp["texto"];
+    
+    print "[" PROCINFO["pid"] "]", ">", LineaEstResHttp["version"], c, \
+                LineaEstResHttp["texto"];
 
     CabeceraResHttp["Server"] = "Servidor simple de Vargas/1.0";
     CabeceraResHttp["Content-Type"] = LTEST[c]["tpmedio"] ";" CODALF;
