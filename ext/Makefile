@@ -2,22 +2,22 @@ INC=/usr/include
 COP=-fPIC -shared -DHAVE_CONFIG_H -c -O -g
 CIN=-I$(INC)
 CC=gcc
-EXT=leeflujo
+EXT=leeflujo sereno
 
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), CYGWIN_NT-10.0)
-LIB=$(EXT).dll
+SUFJLIB=.dll
 endif
 ifeq ($(UNAME), Linux)
-LIB=$(EXT).so
+SUFLIB=.so
 endif
 
-$(EXT): $(EXT).o
-	$(CC) -shared -o $(LIB) $(EXT).o
+$(EXT): objetos
+	$(foreach ext,$(EXT), $(CC) -shared -o $(ext)$(SUFLIB) $(ext).o ;)
 
-%.o:
-	$(CC) $(COP) $(CIN) $(EXT).c
+objetos:
+	$(foreach ext,$(EXT), $(CC) $(COP) $(CIN) $(ext).c ;)
 
 limpia:
-	rm -rf *.dll *.o
+	rm -rf *$(SUFLIB) *.o
