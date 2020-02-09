@@ -2,16 +2,16 @@
  * Autor: Ulpiano Tur de Vargas <ulpiano.tur.devargas@gmail.com>
  *
  * Este programa es software libre; puedes distribuirlo y/o
- * modificarlo bajo los términos de la Licencia Pública General de GNU
- * según la publicó la Fundación del Software Libre; ya sea la versión 3, o
- * (a su elección) una versión superior.
+ * modificarlo bajo los tÃ©rminos de la Licencia PÃºblica General de GNU
+ * segÃºn la publicÃ³ la FundaciÃ³n del Software Libre; ya sea la versiÃ³n 3, o
+ * (a su elecciÃ³n) una versiÃ³n superior.
  *
- * Este programa se distribuye con la esperanza de que sea útil,
- * pero SIN NINGUNA GARANTIA; ni siquiera la garantía implícita de
- * COMERCIABILIDAD o APTITUD PARA UN PROPÓSITO DETERMINADO. Vea la
- * Licencia Pública General de GNU para más detalles.
+ * Este programa se distribuye con la esperanza de que sea Ãºtil,
+ * pero SIN NINGUNA GARANTIA; ni siquiera la garantÃ­a implÃ­cita de
+ * COMERCIABILIDAD o APTITUD PARA UN PROPÃ“SITO DETERMINADO. Vea la
+ * Licencia PÃºblica General de GNU para mÃ¡s detalles.
  *
- * Deberás haber recibido una copia de la Licencia Pública General
+ * DeberÃ¡s haber recibido una copia de la Licencia PÃºblica General
  * de GNU junto con este software; mira el fichero LICENSE. Si
  * no, mira <https://www.gnu.org/licenses/>.
  *
@@ -49,7 +49,7 @@
 
 static const gawk_api_t *api;	/* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
-static const char *ext_version = "extensión sereno E/S: versión 1.0";
+static const char *ext_version = "extensiÃ³n sereno E/S: versiÃ³n 1.0";
 
 static awk_bool_t (*init_func)(void) = NULL;
 
@@ -73,9 +73,9 @@ haz_trae_es(int nargs, awk_value_t *resultado)
 
     assert(resultado != NULL);
 
-    /* Sólo acepta 2 argumentos */
+    /* SÃ³lo acepta 2 argumentos */
     if (nargs < 2 || nargs > 3) {
-        lintwarn(ext_id, "trae_es: nº de argumentos incorrecto");
+        lintwarn(ext_id, "trae_es: nÂº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -102,7 +102,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
         valor.array_cookie = lista_es;
 
         if (! sym_update("EntSal", &valor))
-            lintwarn(ext_id, "trae_es: error creando símbolo \"EntSal\"");
+            lintwarn(ext_id, "trae_es: error creando sÃ­mbolo \"EntSal\"");
         lista_es = valor.array_cookie;
     }
     
@@ -137,7 +137,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
     return make_number(1, resultado);
 }
 
-/* haz_sondea -- Proporciona función poll() cargada dinámicamente */
+/* haz_sondea -- Proporciona funciÃ³n poll() cargada dinÃ¡micamente */
 
 #ifdef API_AWK_V2
 static awk_value_t *
@@ -153,9 +153,9 @@ haz_sondea(int nargs, awk_value_t *resultado)
 
     assert(resultado != NULL);
 
-    /* Sólo acepta 1 argumento */
+    /* SÃ³lo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "sondea: nº e argumentos incorrecto");
+        lintwarn(ext_id, "sondea: nÂº e argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -185,7 +185,7 @@ haz_sondea(int nargs, awk_value_t *resultado)
     return make_number(ret, resultado);
 }
 
-/* haz_vigila -- Proporciona función select() cargada dinámicamente */
+/* haz_vigila -- Proporciona funciÃ³n select() cargada dinÃ¡micamente */
 
 #ifdef API_AWK_V2
 static awk_value_t *
@@ -203,9 +203,9 @@ haz_vigila(int nargs, awk_value_t *resultado)
 
     assert(resultado != NULL);
 
-    /* Sólo acept 1 argumento */
+    /* SÃ³lo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "vigila: nº de argumentos incorrecto");
+        lintwarn(ext_id, "vigila: nÂº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -215,7 +215,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    /* Limpia colección de descriptores E/S */
+    /* Limpia colecciÃ³n de descriptores E/S */
     FD_ZERO(&dsc_lect);
     FD_ZERO(&dsc_escr);
 
@@ -238,7 +238,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
     while (1) {
         ret = select(FD_SETSIZE, &dsc_lect, &dsc_escr, NULL, &tmp);
         return make_number(ret, resultado);
-        /* ¿Listo para leer y escribir? */
+        /* Â¿Listo para leer y escribir? */
         if (ret 
             && FD_ISSET(df_lect, &dsc_lect)
             && FD_ISSET(df_escr, &dsc_escr)) 
@@ -265,6 +265,6 @@ static awk_ext_func_t lista_de_funciones[] = {
 };
 #endif
 
-/* Define función de carga */
+/* Define funciÃ³n de carga */
 
 dl_load_func(lista_de_funciones, sereno, "")
