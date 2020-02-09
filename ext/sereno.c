@@ -75,7 +75,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
 
     /* Sólo acepta 2 argumentos */
     if (nargs < 2 || nargs > 3) {
-        lintwarn(ext_id, "trae_es: nº e argumentos incorrecto");
+        lintwarn(ext_id, "trae_es: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -102,11 +102,11 @@ haz_trae_es(int nargs, awk_value_t *resultado)
         valor.array_cookie = lista_es;
 
         if (! sym_update("EntSal", &valor))
-            lintwarn(ext_id, "trae_es: sym_update(\"EntSal\") no se crea!");
+            lintwarn(ext_id, "trae_es: error creando símbolo \"EntSal\"");
         lista_es = valor.array_cookie;
     }
     
-    /* En caso de error se intenta nevamente a los 0.6 s  */
+    /* Por ahora, en caso de error, reintentar cada 0.6s */
     while (! get_file(fichero.str_value.str, fichero.str_value.len,
                         tipo.str_value.str, -1, &entrada, &salida))
          nanosleep((const struct timespec[]){{0, 600000000L}}, NULL);
@@ -137,7 +137,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
     return make_number(1, resultado);
 }
 
-/* haz_sondea  -- Proporciona función pol() cargada dinámicamente */
+/* haz_sondea -- Proporciona función poll() cargada dinámicamente */
 
 #ifdef API_AWK_V2
 static awk_value_t *
@@ -153,7 +153,7 @@ haz_sondea(int nargs, awk_value_t *resultado)
 
     assert(resultado != NULL);
 
-    /* SÃ³lo acept 1 argumento */
+    /* Sólo acepta 1 argumento */
     if (nargs != 1) {
         lintwarn(ext_id, "sondea: nº e argumentos incorrecto");
         return make_number(-1, resultado);
@@ -215,7 +215,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    /* Limpia colecciÃ³n de descriptores E/S */
+    /* Limpia colección de descriptores E/S */
     FD_ZERO(&dsc_lect);
     FD_ZERO(&dsc_escr);
 
@@ -225,7 +225,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
     df_lect = valor.num_value;
     FD_SET(df_lect, &dsc_lect);
 
-    /* Salida: monitoriza si esposible escribir */
+    /* Salida: monitoriza si es posible escribir */
     (void) make_const_string("salida", 6, &nombre);
     get_array_element(lista_es.array_cookie, &nombre, AWK_NUMBER, &valor);
     df_escr = valor.num_value;
