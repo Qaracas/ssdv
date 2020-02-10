@@ -7,7 +7,7 @@ EXT=leeflujo sereno
 UNAME := $(shell uname)
 
 ifeq ($(UNAME), CYGWIN_NT-10.0)
-SUFJLIB=.dll
+SUFLIB=.dll
 endif
 ifeq ($(UNAME), Linux)
 SUFLIB=.so
