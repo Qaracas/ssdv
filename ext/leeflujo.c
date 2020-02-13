@@ -36,8 +36,11 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stddef.h>
+#include <assert.h>
 
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "gawkapi.h"
 
@@ -57,6 +60,32 @@ typedef struct fichero_abierto {
     char *tope;
     size_t max;     /* Por defecto. Si no, vale TPM */
 } t_fichero_abierto;
+
+awk_bool_t
+crea_actualiza_var_global_num(double num, char *var)
+{
+    awk_value_t valor;
+
+    if (!sym_lookup(var, AWK_NUMBER, &valor)) {
+        if (valor.val_type == AWK_STRING)
+            gawk_free(valor.str_value.str);
+        if (valor.val_type == AWK_REGEX)
+            gawk_free(valor.regex_value.str);
+        if (valor.val_type == AWK_ARRAY)
+            clear_array(valor.array_cookie);
+        make_number(num, &valor);
+    } else
+        valor.num_value = num;
+
+    assert(&valor != NULL);
+
+    if (!sym_update(var, &valor)) {
+        warning(ext_id, "lee_flujo: error creando símbolo %s", var);
+        return awk_false;
+    }
+
+    return awk_true;
+}
 
 /* trae_registro --- Lee cada vez hasta MAX octetos */
 
@@ -86,6 +115,9 @@ trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     *(fichero->tope + ltd + 1) = '\0';
     *out = fichero->tope;
+
+    /* Exportar número de octetos leídos a la tabla de símbolos */
+    crea_actualiza_var_global_num((double)ltd, "LTD");
 
     *rt_start = NULL;
     *rt_len = 0;    /* Pon RT a "" */
@@ -119,15 +151,15 @@ lee_puede_aceptar_fichero(const awk_input_buf_t *iobuf)
 {
     awk_value_t valor_tpm;
 
-    if (iobuf == NULL || 
-        !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) || 
-        valor_tpm.num_value <= 0)
+    if (   iobuf == NULL
+        || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm))
+        || valor_tpm.num_value <= 0)
         return awk_false;
 
-    return (iobuf->fd != INVALID_HANDLE &&
-            (S_ISREG(iobuf->sbuf.st_mode) ||
-             S_ISBLK(iobuf->sbuf.st_mode) ||
-             S_ISLNK(iobuf->sbuf.st_mode)));
+    return (   iobuf->fd != INVALID_HANDLE
+            && (   S_ISREG(iobuf->sbuf.st_mode)
+                || S_ISBLK(iobuf->sbuf.st_mode)
+                || S_ISLNK(iobuf->sbuf.st_mode)));
 }
 
 /*
@@ -140,8 +172,8 @@ lee_tomar_control_de(awk_input_buf_t *iobuf)
     awk_value_t valor_tpm;
     t_fichero_abierto *fichero;
 
-    if (!(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) || 
-        valor_tpm.num_value <= 0)
+    if (   !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm))
+        || valor_tpm.num_value <= 0)
         return awk_false;
 
     flujo = fdopen(iobuf->fd, "r");
