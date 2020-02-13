@@ -84,6 +84,8 @@ function Un_proceso(canalTcpIP,      EntSal)
         # Genera LineaIniPetHttp, CabeceraPetHttp
         LeePeticion_http(canalTcpIP);
 
+        # Borra cabeceras respuesta anterior
+        delete CabeceraResHttp;
         # Genera LineaEstResHttp
         ProcesaPeticion_http(LineaIniPetHttp, CabeceraPetHttp);
 
