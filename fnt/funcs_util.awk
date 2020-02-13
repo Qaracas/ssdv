@@ -30,31 +30,6 @@
 # License along with this software; see the file LICENSE. If
 # not, see <https://www.gnu.org/licenses/>.
 
-BEGIN {
-    for(n = 0; n < 256; n++)
-        _ORD[sprintf("%c", n)] = n;
-}
-
-function EsASCII_util(ctr)
-{
-    if(!(ctr in _ORD) || _ORD[ctr] > 127)
-        return 0;
-    return 1;
-}
-
-function NumOctetos_util(cadena,      c, i, j)
-{
-    i = j = 0;
-    for (;;) {
-        if ((c = substr(cadena[0], ++i, 1)) == "")
-            return j;
-        if (!EsASCII_util(c))
-            j = j + 2;
-        else
-            j++;
-    }
-}
-
 ##
 #
 # Sustituye a typeof en GNU Awk < 4.2
