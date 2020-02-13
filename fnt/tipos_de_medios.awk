@@ -34,7 +34,8 @@ BEGIN{
     # Lista asociación extensión fichero contenido con tipo de medio
     # Ver: https://www.iana.org/assignments/media-types/media-types.xhtml
     LSTTM["desconocido"] = "text/plain";
-    LSTTM["json"]        = "application/json";
     LSTTM["txt"]         = "text/plain";
     LSTTM["html"]        = "text/html";
+    LSTTM["json"]        = "application/json";
+    LSTTM["png"]         = "image/png";
 }
