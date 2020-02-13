@@ -41,13 +41,14 @@
 #include <assert.h>
 #include <poll.h>
 #include <time.h>
+#include <stddef.h>
 
 #include <sys/stat.h>
 #include <sys/select.h>
 
 #include "gawkapi.h"
 
-static const gawk_api_t *api;	/* Conveniencia para usar macros */
+static const gawk_api_t *api;   /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
 static const char *ext_version = "extensión sereno E/S: versión 1.0";
 
@@ -105,7 +106,7 @@ haz_trae_es(int nargs, awk_value_t *resultado)
             lintwarn(ext_id, "trae_es: error creando símbolo \"EntSal\"");
         lista_es = valor.array_cookie;
     }
-    
+
     /* Por ahora, en caso de error, reintentar cada 0.6s */
     while (! get_file(fichero.str_value.str, fichero.str_value.len,
                         tipo.str_value.str, -1, &entrada, &salida))
@@ -164,7 +165,7 @@ haz_sondea(int nargs, awk_value_t *resultado)
         update_ERRNO_string("sondea: argumento E/S incorrecto");
         return make_number(-1, resultado);
     }
-    
+
     /* Entrada: averigua si es posible leer */
     (void) make_const_string("entrada", 7, &nombre);
     get_array_element(lista_es.array_cookie, &nombre, AWK_NUMBER, &valor);
@@ -239,7 +240,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
         ret = select(FD_SETSIZE, &dsc_lect, &dsc_escr, NULL, &tmp);
         return make_number(ret, resultado);
         /* ¿Listo para leer y escribir? */
-        if (ret 
+        if (   ret 
             && FD_ISSET(df_lect, &dsc_lect)
             && FD_ISSET(df_escr, &dsc_escr)) 
         {
