@@ -3,7 +3,8 @@
 ## Referencias
 
 * [Protocolo HTTP - Documentación de varias especificaciones](https://httpwg.org/specs/)
-* [Protocolo HTTP - Estándar](https://tools.ietf.org/html/rfc2616)
+* [Protocolo HTTP - Estándar HTTP/1.1](https://tools.ietf.org/html/rfc2616)
+* [Protocolo HTTP - Estándar HTTP/2](https://tools.ietf.org/html/rfc7540)
 * [Protocolo HTTP - Artículo de la Wikipedia](https://es.wikipedia.org/wiki/Protocolo_de_transferencia_de_hipertexto)
 * [Protocolo HTTP - Documentación para desarrolladores (Mozilla)](https://developer.mozilla.org/es/docs/Web/HTTP)
 * [Protocolo HTTP - Resumen códigos de estado (W3C)](https://www.w3schools.com/tags/ref_httpmessages.asp)
