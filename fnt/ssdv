@@ -37,6 +37,7 @@
 
 @load "fork"
 @load "sereno"
+@load "conector"
 
 BEGIN {
     Opterr = 0;
@@ -55,13 +56,20 @@ BEGIN {
 
     Inicia_http();
 
-    canalTcpIP = "/inet/tcp/" trae(lcfg, "general.puerto") "/0/0";    
+    puerto = trae(lcfg, "general.puerto");
+    canalTcpIP = "/inet/tcp/" puerto "/0/0";
 
-    max = trae(lcfg, "general.numero_maximo_hilos");
-    for (i = 0; i < max; i++)
-        p[i] = Crea_proceso(canalTcpIP);
+    tomaEscucha = crea_toma(puerto);
+    
+    print escucha(tomaEscucha);
 
-    wait();
+    Un_proceso(canalTcpIP);
+
+#    max = trae(lcfg, "general.numero_maximo_hilos");
+#    for (i = 0; i < max; i++)
+#        p[i] = Crea_proceso(canalTcpIP);
+#
+#    wait();
 }
 
 function Crea_proceso(canalTcpIP,      pid)
@@ -74,12 +82,12 @@ function Crea_proceso(canalTcpIP,      pid)
 
 function Un_proceso(canalTcpIP,      EntSal)
 {
+    #delete EntSal;
+    #trae_es(canalTcpIP, "|&", EntSal);
     for (;;) {
         # Sondea E/S. Espera hasta poder leer y escribir en canal TCP/IP
-	    delete EntSal;
-        trae_es(canalTcpIP, "|&", EntSal);
-        sondea(EntSal);
-	    #vigila(EntSal);
+        #print sondea(EntSal);
+        #vigila(EntSal);
 
         # Genera LineaIniPetHttp, CabeceraPetHttp
         LeePeticion_http(canalTcpIP);

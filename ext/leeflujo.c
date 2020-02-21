@@ -87,7 +87,7 @@ crea_actualiza_var_global_num(double num, char *var)
     return awk_true;
 }
 
-/* trae_registro --- Lee cada vez hasta MAX octetos */
+/* trae_registro -- Lee cada vez hasta MAX octetos */
 
 #ifdef API_AWK_V2
 static int
@@ -124,7 +124,7 @@ trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     return ltd;
 }
 
-/* cerrar_fichero --- Cerrar al acabar */
+/* cerrar_fichero -- Cerrar al acabar */
 
 static void
 cerrar_fichero(awk_input_buf_t *iobuf)
@@ -143,9 +143,8 @@ cerrar_fichero(awk_input_buf_t *iobuf)
     iobuf->fd = -1;
 }
 
-/*
- * lee_puede_aceptar_fichero --- Retorna "true" si procesamos archivo 
- */
+/* lee_puede_aceptar_fichero -- Retorna "true" si procesamos archivo */
+
 static awk_bool_t
 lee_puede_aceptar_fichero(const awk_input_buf_t *iobuf)
 {
@@ -162,9 +161,8 @@ lee_puede_aceptar_fichero(const awk_input_buf_t *iobuf)
                 || S_ISLNK(iobuf->sbuf.st_mode)));
 }
 
-/*
- * lee_tomar_control_de --- Activa análisis de entrada.
- */
+/* lee_tomar_control_de -- Activa análisis de entrada */
+
 static awk_bool_t
 lee_tomar_control_de(awk_input_buf_t *iobuf)
 {
@@ -204,7 +202,7 @@ static awk_input_parser_t procesador_leeflujo = {
     NULL
 };
 
-/* inicia_leeflujo --- Iniciar cosas */
+/* inicia_leeflujo -- Iniciar cosas */
 
 static awk_bool_t
 inicia_leeflujo()

@@ -1,5 +1,37 @@
 # El servidor simple de Vargas (ssdv)
 
+## ¿Qué es `ssdv`?
+
+`ssdv` es un servidor [HTTP](https://es.wikipedia.org/wiki/Protocolo_de_transferencia_de_hipertexto) escrito en [AWK](https://www.gnu.org/software/gawk/manual/gawk.html) siguiendo un modelo concurrente.
+
+## Requisitos
+
+* Núcleo Linux.
+* Versión de `GNU Awk`, `API 2.0`.
+* Última versión de [jdva](https://github.com/Qaracas/jdva).
+
+## Instalación
+
+1. Instalar [jdva](https://github.com/Qaracas/jdva).
+
+2. Descargar el proyecto completo escribiendo:
+
+```bash
+$ git clone git://github.com/Qaracas/ssdv.git
+```
+
+3. Fijar la variable de entorno [AWKPATH](https://www.gnu.org/software/gawk/manual/gawk.html#AWKPATH-Variable):
+
+```bash
+(ssdv) export AWKPATH=${AWKPATH}:"$(pwd)""/fnt"
+```
+
+4. Fijar la variable de entorno [AWKLIBPATH](https://www.gnu.org/software/gawk/manual/html_node/AWKLIBPATH-Variable.html)
+
+```bash
+(ssdv) export AWKLIBPATH=${AWKLIBPATH}:"$(pwd)""/ext"
+```
+
 ## Referencias
 
 * [Protocolo HTTP - Documentación de varias especificaciones](https://httpwg.org/specs/)
@@ -10,7 +42,6 @@
 * [Protocolo HTTP - Resumen códigos de estado (W3C)](https://www.w3schools.com/tags/ref_httpmessages.asp)
 * [Servidores HTTP - 3 técnicas de concurrencia](https://www.linuxjournal.com/content/three-ways-web-server-concurrency)
 * [Servidores HTTP - Programación concurrente para arquitectura web escalable](https://oparu.uni-ulm.de/xmlui/bitstream/handle/123456789/2450/vts_8082_11772.pdf?sequence=1&isAllowed=y)
-
 
 ## Autores
 

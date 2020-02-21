@@ -2,7 +2,7 @@ INC=/usr/include
 COP=-fPIC -shared -DHAVE_CONFIG_H -c -O -g
 CIN=-I$(INC)
 CC=gcc
-EXT=leeflujo sereno
+EXT=leeflujo sereno conector
 
 UNAME := $(shell uname)
 

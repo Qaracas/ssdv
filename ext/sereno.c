@@ -56,88 +56,6 @@ static awk_bool_t (*init_func)(void) = NULL;
 
 int plugin_is_GPL_compatible;
 
-/* haz_trae_es -- Trae descriptores E/S de un fichero o flujo */
-
-#ifdef API_AWK_V2
-static awk_value_t *
-haz_trae_es(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
-#else
-static awk_value_t *
-haz_trae_es(int nargs, awk_value_t *resultado)
-#endif
-{
-    awk_array_t lista_es;
-    awk_value_t lista_arg, nombre, valor;
-    awk_value_t fichero, tipo;
-    const awk_input_buf_t *entrada;
-    const awk_output_buf_t *salida;
-
-    assert(resultado != NULL);
-
-    /* Sólo acepta 2 argumentos */
-    if (nargs < 2 || nargs > 3) {
-        lintwarn(ext_id, "trae_es: nº de argumentos incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    /* Trae nombre fichero y tipo */  
-    if (   ! get_argument(0, AWK_STRING, &fichero)
-        || ! get_argument(1, AWK_STRING, &tipo))
-    {   
-        lintwarn(ext_id, "trae_es: tipo de argumento incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    /* Almacena en lista EntSal, o en 3 argumento, los descriptores de E/S */
-    if (nargs == 3) {
-        if (! get_argument(2, AWK_ARRAY, &lista_arg)) {
-            warning(ext_id, "trae_es: el argumento E/S debe ser una lista");
-            update_ERRNO_string("trae_es: argumento E/S incorrecto");
-            return make_number(-1, resultado);
-        }
-        clear_array(lista_arg.array_cookie);
-        lista_es = lista_arg.array_cookie;
-    } else {
-        lista_es = create_array();
-        valor.val_type = AWK_ARRAY;
-        valor.array_cookie = lista_es;
-
-        if (! sym_update("EntSal", &valor))
-            lintwarn(ext_id, "trae_es: error creando símbolo \"EntSal\"");
-        lista_es = valor.array_cookie;
-    }
-
-    /* Por ahora, en caso de error, reintentar cada 0.6s */
-    while (! get_file(fichero.str_value.str, fichero.str_value.len,
-                        tipo.str_value.str, -1, &entrada, &salida))
-         nanosleep((const struct timespec[]){{0, 600000000L}}, NULL);
-
-    if (entrada == NULL || salida == NULL) {
-        update_ERRNO_int(EIO);
-        update_ERRNO_string("trae_es: error de E/S");
-        lintwarn(ext_id, "trae_es: error trayendo descriptores de E/S");
-        return make_number(-1, resultado);
-    }
-
-    /* EntSal["entrada"] = descriptor Entrada */
-    (void) make_const_string("entrada", 7, &nombre);
-    (void) make_number(entrada->fd, &valor);
-    if (! set_array_element(lista_es, &nombre, &valor)) {
-        lintwarn(ext_id, "trae_es: fallo al crear elemento entrada");
-        return make_number(-1, resultado);
-    }
-
-    /* EntSal["salida"] = descriptor Salida */
-    (void) make_const_string("salida",  6, &nombre);
-    (void) make_number(fileno(salida->fp), &valor);
-    if (! set_array_element(lista_es, &nombre, &valor)) {
-        lintwarn(ext_id, "trae_es: fallo al crear elemento salida");
-        return make_number(-1, resultado);
-    }
-
-    return make_number(1, resultado);
-}
-
 /* haz_sondea -- Proporciona función poll() cargada dinámicamente */
 
 #ifdef API_AWK_V2
@@ -156,7 +74,7 @@ haz_sondea(int nargs, awk_value_t *resultado)
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "sondea: nº e argumentos incorrecto");
+        lintwarn(ext_id, "sondea: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -244,7 +162,7 @@ haz_vigila(int nargs, awk_value_t *resultado)
             && FD_ISSET(df_lect, &dsc_lect)
             && FD_ISSET(df_escr, &dsc_escr)) 
         {
-            break;  
+            break;
         }
     }
 
@@ -254,13 +172,11 @@ haz_vigila(int nargs, awk_value_t *resultado)
 
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-    { "trae_es", haz_trae_es, 0, 0, awk_false, NULL },
     { "sondea",  haz_sondea,  0, 0, awk_false, NULL },
     { "vigila",  haz_vigila,  0, 0, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-    { "trae_es", haz_trae_es, 0 },
     { "sondea",  haz_sondea,  0 },
     { "vigila",  haz_vigila,  0 },
 };
