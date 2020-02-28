@@ -363,6 +363,8 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     //flujo->df_sal = (int) valor_dfc.num_value;
 
     /* Extrae la primera conexión de la cola de conexiones */
+    struct sockaddr_in cliente;
+    socklen_t lnt = (socklen_t) sizeof(cliente);
     flujo->df_sal  = accept((int) valor_dfc.num_value, 
                             (struct sockaddr*) &cliente, &lnt);
 
