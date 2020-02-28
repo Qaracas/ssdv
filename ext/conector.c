@@ -270,21 +270,20 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     if (flujo->ltd > 0) {
         strcpy(flujo->tope, (const char *) flujo->tope + flujo->ltd);
     }
-    printf ("Descriptor E/S: %d\n",   iobuf->fd);
+
     printf ("Descriptor opaco: %d\n", flujo->df_sal);
     printf ("Tamaño máximo tope: %d\n", flujo->max);
     printf ("Separador de registro: %s\n", flujo->sdrt);
     
-    ltd = recv(flujo->df_sal, flujo->tope, sizeof(flujo->tope), 0); 
+    ltd = recv(flujo->df_sal, flujo->tope, flujo->max, 0); 
 
     if (ltd == 0)
         return EOF;
 
     if (ltd < 0) {
-        perror("Error");
-        //update_ERRNO_int(ENOENT);
-        //update_ERRNO_string("conector: error de E/S");
-        //lintwarn(ext_id, "conector: error recibiendo datos de la toma");
+        update_ERRNO_int(ENOENT);
+        update_ERRNO_string("conector: error de E/S");
+        lintwarn(ext_id, "trae_regsitro: error recibiendo datos de la toma");
         return EOF;
     }
 
@@ -296,11 +295,10 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     if (*rt_start == NULL) {
         update_ERRNO_int(EOVERFLOW);
         update_ERRNO_string("conector: desbordamiento");
-        lintwarn(ext_id, "conector: registro demasiado extenso");
+        lintwarn(ext_id, "trae_registro: registro demasiado extenso");
         return EOF;
     }
 
-    **rt_start = '\0';
     *out = flujo->tope;
 
     flujo->ltd = **rt_start - *(flujo->tope);
