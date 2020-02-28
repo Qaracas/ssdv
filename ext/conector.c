@@ -446,7 +446,7 @@ inicia_conector()
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma", haz_crea_toma,      0, 0, awk_false, NULL },
-    { "cierra",   haz_cierra_toma,    0, 0, akk_false, NULL },
+    { "cierra",   haz_cierra_toma,    0, 0, awk_false, NULL },
     { "extraep",  haz_extrae_primera, 0, 0, awk_false, NULL },
 };
 #else
