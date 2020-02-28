@@ -32,6 +32,8 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+//#define API_AWK_V2
+
 #define _GNU_SOURCE
 
 #include <time.h>
@@ -67,8 +69,11 @@ int plugin_is_GPL_compatible;
 /* haz_crea_toma -- Crea toma de escucha */
 
 static awk_value_t *
-haz_crea_toma(int nargs, awk_value_t *resultado,
-            struct awk_ext_func *unused)
+#ifdef API_AWK_V2
+haz_crea_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
+#else
+haz_crea_toma(int nargs, awk_value_t *resultado)
+#endif
 {
     int df_cnx_ent;
     awk_value_t puerto;
@@ -76,12 +81,12 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "conector: nº de argumentos incorrecto");
+        lintwarn(ext_id, "creatoma: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
     if (! get_argument(0, AWK_NUMBER, &puerto)) {   
-        lintwarn(ext_id, "conector: tipo de argumento incorrecto");
+        lintwarn(ext_id, "creatoma: tipo de argumento incorrecto");
         return make_number(-1, resultado);
     }
 
@@ -89,7 +94,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
     df_cnx_ent = socket(AF_INET, SOCK_STREAM, 0);
 
     if (df_cnx_ent < 0) {
-        lintwarn(ext_id, "conector: error creando toma de entrada");
+        lintwarn(ext_id, "creatoma: error creando toma de entrada");
         return make_number(-1, resultado);
     }
 
@@ -101,13 +106,13 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
 
     if (bind(df_cnx_ent, (struct sockaddr*) &servidor,
             sizeof(servidor)) < 0) {
-        lintwarn(ext_id, "conector: error enlazando toma de entrada");
+        lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
         return make_number(-1, resultado);
     }
 
     /* Poner toma en modo escucha */
     if (listen(df_cnx_ent, PENDIENTES) < 0){
-        lintwarn(ext_id, "conector: error poniendo toma en escucha");
+        lintwarn(ext_id, "creatoma: error poniendo toma en escucha");
         return make_number(-1, resultado);
     }
 
@@ -117,8 +122,12 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
 /* haz_extrae_primera -- Extrae primera conexión de la cola de conexiones */
 
 static awk_value_t *
+#ifdef API_AWK_V2
 haz_extrae_primera(int nargs, awk_value_t *resultado,
-            struct awk_ext_func *unused)
+                   struct awk_ext_func *unused)
+#else
+haz_extrae_primera(int nargs, awk_value_t *resultado)
+#endif
 {
     int df_cnx_sal;
     awk_value_t toma_ent;
@@ -127,21 +136,22 @@ haz_extrae_primera(int nargs, awk_value_t *resultado,
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "conector: nº de argumentos incorrecto");
+        lintwarn(ext_id, "extraep: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
     if (! get_argument(0, AWK_NUMBER, &toma_ent)) {
-        lintwarn(ext_id, "conector: tipo de argumento incorrecto");
+        lintwarn(ext_id, "extraep: tipo de argumento incorrecto");
         return make_number(-1, resultado);
     }
 
     /* Extrae la primera conexión de la cola de conexiones */
     df_cnx_sal = accept((int) toma_ent.num_value, 
-            (struct sockaddr*) &cliente, &lnt);
+                        (struct sockaddr*) &cliente, &lnt);
 
-    int val = 1000;
-    setsockopt(df_cnx_sal, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+    if (df_cnx_sal < 0) {
+        lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
+    }
 
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. Valor de la 
@@ -238,9 +248,14 @@ maneja_error(FILE *fp, void *opaque)
 /* conector_trae_registro -- lee un registro cada vez */
 
 static int
+#ifdef API_AWK_V2
 conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
-        char **rt_start, size_t *rt_len,
-        const awk_fieldwidth_info_t **unused)
+                       char **rt_start, size_t *rt_len,
+                       const awk_fieldwidth_info_t **unused)
+#else
+conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
+                       char **rt_start, size_t *rt_len)
+#endif
 {
     int ltd = 0;
     t_datos_conector *flujo;
@@ -296,7 +311,8 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 /* conector_escribe -- Envía respuesta a solicitud del cliente */
 
 static size_t
-conector_escribe(const void *buf, size_t size, size_t count, FILE *fp, void *opaque)
+conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
+                 void *opaque)
 {
     t_datos_conector *flujo;
     size_t escrito;
@@ -324,7 +340,7 @@ conector_puede_aceptar_fichero(const char *name)
 
 static awk_bool_t
 conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
-    awk_output_buf_t *outbuf)
+                          awk_output_buf_t *outbuf)
 {
     awk_value_t valor_dfc, valor_tpm, valor_rs;
     t_datos_conector *flujo;
@@ -389,11 +405,17 @@ inicia_conector()
     return awk_true;
 }
 
+#ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-    { "escucha",   haz_crea_toma,      0, 0, awk_false, NULL },
-    { "extraep",   haz_extrae_primera, 0, 0, awk_false, NULL },
+    { "creatoma", haz_crea_toma,      0, 0, awk_false, NULL },
+    { "extraep",  haz_extrae_primera, 0, 0, awk_false, NULL },
 };
-
+#else
+static awk_ext_func_t lista_de_funciones[] = {
+    { "creatoma", haz_crea_toma,      0, },
+    { "extraep",  haz_extrae_primera, 0, },
+};
+#endif
 /* Define función de carga */
 
 dl_load_func(lista_de_funciones, conector, "")
