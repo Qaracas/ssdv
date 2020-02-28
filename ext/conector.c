@@ -119,6 +119,35 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     return make_number(df_cnx_ent, resultado);
 }
 
+/* haz_cierra_toma -- Cierra toma de escucha */
+static awk_value_t *
+#ifdef API_AWK_V2
+haz_cierra_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
+#else
+haz_cierra_toma(int nargs, awk_value_t *resultado)
+#endif
+{
+    awk_value_t df_cnx_ent;
+
+    /* Sólo acepta 1 argumento */
+    if (nargs != 1) {
+        lintwarn(ext_id, "cierra: nº de argumentos incorrecto");
+        return make_number(-1, resultado);
+    }
+
+    if (! get_argument(0, AWK_NUMBER, &df_cnx_ent)) {   
+        lintwarn(ext_id, "cierra: tipo de argumento incorrecto");
+        return make_number(-1, resultado);
+    }
+
+    if ( (close((int) df_cnx_ent.num_value)) < 0) {
+        lintwarn(ext_id, "cierra: error cerrando toma de conexión");
+        return make_number(-1, resultado);
+    }
+
+    return make_number(0, resultado);
+}
+
 /* haz_extrae_primera -- Extrae primera conexión de la cola de conexiones */
 
 static awk_value_t *
@@ -417,12 +446,14 @@ inicia_conector()
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma", haz_crea_toma,      0, 0, awk_false, NULL },
+    { "cierra",   haz_cierra_toma,    0, 0, akk_false, NULL },
     { "extraep",  haz_extrae_primera, 0, 0, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma", haz_crea_toma,      0, },
-    { "extraep",  haz_extrae_primera, 0, },
+    { "creatoma", haz_crea_toma,      0 },
+    { "cierra",   haz_cierra_toma,    0 },
+    { "extraep",  haz_extrae_primera, 0 },
 };
 #endif
 /* Define función de carga */
