@@ -32,7 +32,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-#define API_AWK_V2 1
+//#define API_AWK_V2
 
 #include <stdio.h>
 #include <errno.h>
@@ -69,8 +69,10 @@ crea_actualiza_var_global_num(double num, char *var)
     if (!sym_lookup(var, AWK_NUMBER, &valor)) {
         if (valor.val_type == AWK_STRING)
             gawk_free(valor.str_value.str);
+#ifdef API_AWK_V2
         if (valor.val_type == AWK_REGEX)
             gawk_free(valor.regex_value.str);
+#endif
         if (valor.val_type == AWK_ARRAY)
             clear_array(valor.array_cookie);
         make_number(num, &valor);
@@ -89,13 +91,12 @@ crea_actualiza_var_global_num(double num, char *var)
 
 /* trae_registro -- Lee cada vez hasta MAX octetos */
 
-#ifdef API_AWK_V2
 static int
+#ifdef API_AWK_V2
 trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         char **rt_start, size_t *rt_len,
         const awk_fieldwidth_info_t **unused)
 #else
-static int
 trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         char **rt_start, size_t *rt_len)
 #endif
@@ -183,10 +184,11 @@ lee_tomar_control_de(awk_input_buf_t *iobuf)
         return awk_false;
     }
     emalloc(fichero, t_fichero_abierto *,
-        sizeof(t_fichero_abierto), "lee_tomar_control_de");
+            sizeof(t_fichero_abierto), "lee_tomar_control_de");
     fichero->flujo = flujo;
     fichero->max = (size_t)valor_tpm.num_value;
-    emalloc(fichero->tope, char *, (fichero->max) + 1, "lee_tomar_control_de");
+    emalloc(fichero->tope, char *,
+            (fichero->max) + 1, "lee_tomar_control_de");
 
     iobuf->opaque = fichero;
     iobuf->get_record = trae_registro;

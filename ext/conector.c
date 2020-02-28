@@ -355,11 +355,20 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
         //|| valor_rs.str_value.str != NULL
        )
         return awk_false;
-
+    
     emalloc(flujo, t_datos_conector *,
         sizeof(t_datos_conector), "conector_tomar_control_de");
-    flujo->df_ent = (int) valor_dfc.num_value;
-    flujo->df_sal = (int) valor_dfc.num_value;
+
+    //flujo->df_ent = (int) valor_dfc.num_value;
+    //flujo->df_sal = (int) valor_dfc.num_value;
+
+    /* Extrae la primera conexión de la cola de conexiones */
+    flujo->df_sal  = accept((int) valor_dfc.num_value, 
+                            (struct sockaddr*) &cliente, &lnt);
+
+    if (flujo->df_sal < 0)
+      return awk_false;
+    
     flujo->tsr = strlen((const char *) valor_rs.str_value.str);
     emalloc(flujo->sdrt, char *,
         (flujo->tsr) + 1, "conector_tomar_control_de");

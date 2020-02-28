@@ -32,7 +32,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-#define API_AWK_V2 1
+//#define API_AWK_V2
 
 #define TIEMPOMUERTO 5
 
@@ -58,11 +58,10 @@ int plugin_is_GPL_compatible;
 
 /* haz_sondea -- Proporciona función poll() cargada dinámicamente */
 
-#ifdef API_AWK_V2
 static awk_value_t *
+#ifdef API_AWK_V2
 haz_sondea(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
 #else
-static awk_value_t *
 haz_sondea(int nargs, awk_value_t *resultado)
 #endif
 {
@@ -106,11 +105,10 @@ haz_sondea(int nargs, awk_value_t *resultado)
 
 /* haz_vigila -- Proporciona función select() cargada dinámicamente */
 
-#ifdef API_AWK_V2
 static awk_value_t *
+#ifdef API_AWK_V2
 haz_vigila(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
 #else
-static awk_value_t *
 haz_vigila(int nargs, awk_value_t *resultado)
 #endif
 {
