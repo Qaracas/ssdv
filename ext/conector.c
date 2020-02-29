@@ -350,13 +350,9 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     memcpy(flujo->dato, (const void *) (flujo->tope + sum), flujo->ltd);
     *(flujo->dato + flujo->ltd + 1) = '\0';
 
-    printf ("Dato 1: %s\n", flujo->dato);
-
     *out = flujo->dato;
 
-    printf ("Dato 2: %s\n", *out);
-
-    return ltd;
+    return flujo->ltd;
 }
 
 /* conector_escribe -- Envía respuesta a solicitud del cliente */
