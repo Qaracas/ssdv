@@ -32,7 +32,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-//#define API_AWK_V2
+#define API_AWK_V2
 
 #define _GNU_SOURCE
 
@@ -43,6 +43,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
+#include <stdlib.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -141,6 +142,8 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
     }
 
     if ( (close((int) df_cnx_ent.num_value)) < 0) {
+        perror("cierra:");
+        printf ("cierra: df: %d\n", (int) df_cnx_ent.num_value);
         lintwarn(ext_id, "cierra: error cerrando toma de conexión");
         return make_number(-1, resultado);
     }
@@ -194,6 +197,7 @@ typedef struct two_way_proc_data {
     int df_ent;       /* Descriptor fichero cliente (entrada) */
     int df_sal;       /* Descriptor fichero cliente (salida) */
     char *tope;
+    char *dato;
     char *sdrt;       /* Separador de registro. Variable RS de gawk */
     size_t tsr;       /* Tamaño cadena separador de registro */
     size_t max;       /* Tamaño máximo asignado al tope */
@@ -274,6 +278,19 @@ maneja_error(FILE *fp, void *opaque)
     return 0;
 }
 
+/* longitud -- Distancia entre dos posiciones de memoria */
+static int
+longitud(char *ini, char *fin)
+{
+    int c = 0;
+    char *i = ini;    
+
+    while (i++ != fin)
+        c++;
+    
+    return c;
+}
+
 /* conector_trae_registro -- lee un registro cada vez */
 
 static int
@@ -286,7 +303,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len)
 #endif
 {
-    int ltd = 0;
+    int ltd, sum = 0;
     t_datos_conector *flujo;
 
     (void) errcode; /* silenciar alertas */
@@ -294,43 +311,50 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         return EOF;
 
     flujo = (t_datos_conector *) iobuf->opaque;
-
-    /* Leer datos solicitud cliente hasta el tope */
-    if (flujo->ltd > 0) {
-        strcpy(flujo->tope, (const char *) flujo->tope + flujo->ltd);
-    }
-
-    printf ("Descriptor opaco: %d\n", flujo->df_sal);
-    printf ("Tamaño máximo tope: %d\n", flujo->max);
-    printf ("Separador de registro: %s\n", flujo->sdrt);
     
-    ltd = recv(flujo->df_sal, flujo->tope, flujo->max, 0); 
+    if (flujo->ltd == 0) {
+        ltd = recv(flujo->df_sal, flujo->tope, flujo->max, 0); 
 
-    if (ltd == 0)
-        return EOF;
+        if (ltd == 0)
+            return EOF;
 
-    if (ltd < 0) {
-        update_ERRNO_int(ENOENT);
-        update_ERRNO_string("conector: error de E/S");
-        lintwarn(ext_id, "trae_regsitro: error recibiendo datos de la toma");
-        return EOF;
+        if (ltd < 0) {
+            update_ERRNO_int(ENOENT);
+            update_ERRNO_string("conector: error de E/S");
+            lintwarn(ext_id,
+                     "trae_regsitro: error recibiendo datos de la toma");
+            return EOF;
+        }
+
+        *(flujo->tope + ltd + 1) = '\0';
+    } else {
+        /* Sacamos datos del tope */
+
+        /* Desfase anterior */
+        sum = flujo->ltd + flujo->tsr;
     }
 
-    *(flujo->tope + ltd + 1) = '\0';
     /* Apuntar a los datos que se utilizarán para RT */
-    *rt_start = strstr((const char*) flujo->tope, (const char*) flujo->sdrt);
+    *rt_start = strstr((const char*) flujo->tope + sum,
+                       (const char*) flujo->sdrt);
     *rt_len = flujo->tsr;
 
     if (*rt_start == NULL) {
         update_ERRNO_int(EOVERFLOW);
-        update_ERRNO_string("conector: desbordamiento");
+        update_ERRNO_string("conector: tope desbordado");
         lintwarn(ext_id, "trae_registro: registro demasiado extenso");
         return EOF;
     }
 
-    *out = flujo->tope;
+    flujo->ltd = longitud(flujo->tope + sum, *rt_start);
+    memcpy(flujo->dato, (const void *) (flujo->tope + sum), flujo->ltd);
+    *(flujo->dato + flujo->ltd + 1) = '\0';
 
-    flujo->ltd = **rt_start - *(flujo->tope);
+    printf ("Dato 1: %s\n", flujo->dato);
+
+    *out = flujo->dato;
+
+    printf ("Dato 2: %s\n", *out);
 
     return ltd;
 }
@@ -383,9 +407,11 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
        )
         return awk_false;
     
+    /* Memoriza estructura opaca */
     emalloc(flujo, t_datos_conector *,
         sizeof(t_datos_conector), "conector_tomar_control_de");
 
+    flujo->ltd = 0;
     //flujo->df_ent = (int) valor_dfc.num_value;
     //flujo->df_sal = (int) valor_dfc.num_value;
 
@@ -402,11 +428,12 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     emalloc(flujo->sdrt, char *,
         (flujo->tsr) + 1, "conector_tomar_control_de");
     strcpy(flujo->sdrt, (const char *) valor_rs.str_value.str);
+    
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
         (flujo->max) + 1, "conector_tomar_control_de");
-    bzero(flujo->tope, sizeof(flujo->tope));
-    flujo->ltd = 0;
+    emalloc(flujo->dato, char *,
+        (flujo->max) + 1, "conector_tomar_control_de");
 
     /* Entrada */
     inbuf->opaque = flujo;
