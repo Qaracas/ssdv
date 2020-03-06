@@ -32,7 +32,7 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-//#define API_AWK_V2
+#define API_AWK_V2
 
 #define TIEMPOMUERTO 5
 

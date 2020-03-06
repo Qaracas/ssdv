@@ -201,7 +201,10 @@ typedef struct two_way_proc_data {
     char *sdrt;       /* Separador de registro. Variable RS de gawk */
     size_t tsr;       /* Tamaño cadena separador de registro */
     size_t max;       /* Tamaño máximo asignado al tope */
-    size_t ltd;       /* Tamaño actual del tope */
+    size_t lgtope;    /* Tamaño actual del tope */
+    size_t lgtreg;    /* Tamaño actual del registro */
+    int ptrfin;       /* Puntero final datos dentro de tope */
+    int ptrreg;       /* Puntero inicio regitro dentro de tope */
 } t_datos_conector;
 
 /* libera_conector --- Libera datos */
@@ -278,9 +281,9 @@ maneja_error(FILE *fp, void *opaque)
     return 0;
 }
 
-/* longitud -- Distancia entre dos posiciones de memoria */
+/* long_registro -- Calcula distancia entre dos posiciones de memoria */
 static int
-longitud(char *ini, char *fin)
+long_registro(char *ini, char *fin)
 {
     int c = 0;
     char *i = ini;    
@@ -303,7 +306,6 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len)
 #endif
 {
-    int ltd, sum = 0;
     t_datos_conector *flujo;
 
     (void) errcode; /* silenciar alertas */
@@ -312,47 +314,60 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     flujo = (t_datos_conector *) iobuf->opaque;
     
-    if (flujo->ltd == 0) {
-        ltd = recv(flujo->df_sal, flujo->tope, flujo->max, 0); 
+    if (flujo->lgtope == 0) {
+lee_mas:
+        (flujo->tope)++;
+        flujo->lgtope = recv(flujo->df_sal, 
+                             flujo->tope,
+                             flujo->max - flujo->ptrreg, 0);
 
-        if (ltd == 0)
+        if (flujo->lgtope == 0)
             return EOF;
 
-        if (ltd < 0) {
+        if (flujo->lgtope < 0) {
             update_ERRNO_int(ENOENT);
             update_ERRNO_string("conector: error de E/S");
             lintwarn(ext_id,
                      "trae_regsitro: error recibiendo datos de la toma");
+            /* Limpia salida */
+            bzero(*out, sizeof(out));
             return EOF;
         }
 
-        *(flujo->tope + ltd + 1) = '\0';
-    } else {
-        /* Sacamos datos del tope */
-
+        *(flujo->tope + flujo->lgtope + flujo->ptrreg + 1) = '\0';
+        printf ("A - %d - %d - %s\n", flujo->ptrreg, flujo->lgtope, flujo->tope);
+        flujo->ptrreg = 0;
+    } else { /* Sacamos datos del tope */
         /* Desfase anterior */
-        sum = flujo->ltd + flujo->tsr;
+        flujo->ptrreg = flujo->ptrreg + flujo->lgtreg + (int) flujo->tsr;
     }
 
     /* Apuntar a los datos que se utilizarán para RT */
-    *rt_start = strstr((const char*) flujo->tope + sum,
+    *rt_start = strstr((const char*) flujo->tope + flujo->ptrreg,
                        (const char*) flujo->sdrt);
     *rt_len = flujo->tsr;
 
     if (*rt_start == NULL) {
-        update_ERRNO_int(EOVERFLOW);
-        update_ERRNO_string("conector: tope desbordado");
-        lintwarn(ext_id, "trae_registro: registro demasiado extenso");
-        return EOF;
+        if (flujo->ptrreg == 0) {
+            update_ERRNO_int(EOVERFLOW);
+            update_ERRNO_string("conector: tope desbordado");
+            lintwarn(ext_id, "trae_registro: registro demasiado extenso");
+            return EOF;
+        }
+        /* Limpia tope */
+        bzero(flujo->tope, flujo->max + 1);
+        /* Copia lo que nos queda por leer al inicio del tope */
+        memcpy(flujo->tope, (const void *) (flujo->tope + flujo->ptrreg),
+               flujo->lgtope - flujo->ptrreg);
+        flujo->ptrreg = (flujo->lgtope - flujo->ptrreg) + 1;
+        goto lee_mas;
     }
 
-    flujo->ltd = longitud(flujo->tope + sum, *rt_start);
-    memcpy(flujo->dato, (const void *) (flujo->tope + sum), flujo->ltd);
-    *(flujo->dato + flujo->ltd + 1) = '\0';
+    flujo->lgtreg = long_registro(flujo->tope + flujo->ptrreg, *rt_start);
 
-    *out = flujo->dato;
+    *out = flujo->tope + flujo->ptrreg;
 
-    return flujo->ltd;
+    return flujo->lgtreg;
 }
 
 /* conector_escribe -- Envía respuesta a solicitud del cliente */
@@ -407,7 +422,9 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     emalloc(flujo, t_datos_conector *,
         sizeof(t_datos_conector), "conector_tomar_control_de");
 
-    flujo->ltd = 0;
+    flujo->lgtope = 0;
+    flujo->lgtreg = 0;
+    flujo->ptrreg = 0;
     //flujo->df_ent = (int) valor_dfc.num_value;
     //flujo->df_sal = (int) valor_dfc.num_value;
 
