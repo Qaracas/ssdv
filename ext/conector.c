@@ -197,7 +197,6 @@ typedef struct two_way_proc_data {
     int df_ent;       /* Descriptor fichero cliente (entrada) */
     int df_sal;       /* Descriptor fichero cliente (salida) */
     char *tope;
-    char *dato;
     char *sdrt;       /* Separador de registro. Variable RS de gawk */
     size_t tsr;       /* Tamaño cadena separador de registro */
     size_t max;       /* Tamaño máximo asignado al tope */
@@ -316,7 +315,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     
     if (flujo->lgtope == 0) {
 lee_mas:
-        (flujo->tope)++;
+        bzero(flujo->tope, flujo->max + 1);
         flujo->lgtope = recv(flujo->df_sal, 
                              flujo->tope,
                              flujo->max - flujo->ptrreg, 0);
@@ -329,17 +328,28 @@ lee_mas:
             update_ERRNO_string("conector: error de E/S");
             lintwarn(ext_id,
                      "trae_regsitro: error recibiendo datos de la toma");
-            /* Limpia salida */
-            bzero(*out, sizeof(out));
             return EOF;
         }
+        
+        *(flujo->tope + flujo->lgtope + flujo->ptrreg) = '\0';
 
-        *(flujo->tope + flujo->lgtope + flujo->ptrreg + 1) = '\0';
-        printf ("A - %d - %d - %s\n", flujo->ptrreg, flujo->lgtope, flujo->tope);
+        printf ("\nA - %d - %d - ", flujo->ptrreg, flujo->lgtope);
+        for (int i = 0; i < flujo->max + 1; i++) {
+            if (*(flujo->tope + i) == '\0')
+                printf ("\\0");
+            else if (*(flujo->tope + i) == '\r')
+                printf ("\\r");
+            else if (*(flujo->tope + i) == '\n')
+                printf ("\\n");
+            else
+                printf ("%c", *(flujo->tope + i));
+        }
+        printf ("\n");
+
         flujo->ptrreg = 0;
-    } else { /* Sacamos datos del tope */
-        /* Desfase anterior */
-        flujo->ptrreg = flujo->ptrreg + flujo->lgtreg + (int) flujo->tsr;
+    } else {
+        /* Apunta al siguiente registro del tope */
+        flujo->ptrreg += flujo->lgtreg + (int) flujo->tsr;
     }
 
     /* Apuntar a los datos que se utilizarán para RT */
@@ -354,12 +364,28 @@ lee_mas:
             lintwarn(ext_id, "trae_registro: registro demasiado extenso");
             return EOF;
         }
-        /* Limpia tope */
-        bzero(flujo->tope, flujo->max + 1);
         /* Copia lo que nos queda por leer al inicio del tope */
         memcpy(flujo->tope, (const void *) (flujo->tope + flujo->ptrreg),
                flujo->lgtope - flujo->ptrreg);
-        flujo->ptrreg = (flujo->lgtope - flujo->ptrreg) + 1;
+
+        flujo->ptrreg = (flujo->lgtope - flujo->ptrreg);
+
+        bzero(flujo->tope + flujo->ptrreg,
+              (flujo->max - flujo->ptrreg) + 1);
+
+        printf ("B - %d - ", flujo->ptrreg);
+        for (int i = 0; i < flujo->max + 1; i++) {
+            if (*(flujo->tope + i) == '\0')
+                printf ("\\0");
+            else if (*(flujo->tope + i) == '\r')
+                printf ("\\r");
+            else if (*(flujo->tope + i) == '\n')
+                printf ("\\n");
+            else
+                printf ("%c", *(flujo->tope + i));
+        }
+        printf ("\n");
+
         goto lee_mas;
     }
 
@@ -444,8 +470,6 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
-        (flujo->max) + 1, "conector_tomar_control_de");
-    emalloc(flujo->dato, char *,
         (flujo->max) + 1, "conector_tomar_control_de");
 
     /* Entrada */
