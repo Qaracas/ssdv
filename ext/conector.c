@@ -205,7 +205,8 @@ typedef struct two_way_proc_data {
     size_t lgtope;    /* Tamaño actual del tope */
     size_t lgtreg;    /* Tamaño actual del registro */
     int ptrfin;       /* Puntero final datos dentro de tope */
-    int ptrreg;       /* Puntero inicio regitro dentro de tope */
+    int ptrreg;       /* Puntero inicio registro en tope (actual) */
+    int ptareg;       /* Puntero inicio registro en tope (anterior) */
 } t_datos_conector;
 
 /* libera_conector --- Libera datos */
@@ -335,31 +336,11 @@ lee_mas:
             return EOF;
         }
 
-        //gawk_free(flujo->dato);
-        //emalloc(flujo->dato, char *,
-        //        flujo->max + 2, "conector_trae_registro");
         bzero(flujo->dato, flujo->max + 1);
-
-        //strncat(flujo->dato, (const char *)flujo->rsto,
-        //        strlen(flujo->rsto) - 3);
+        strcat(flujo->dato, (const char *)flujo->rsto);
         strcat(flujo->dato, (const char *)flujo->tope);
-        //strcat(flujo->dato, flujo->tope);
-        //memmove(flujo->dato + flujo->ptrreg,
-        //        (const void *) flujo->tope, flujo->lgtope);
 
-        printf ("\nA - %d - %d - ", flujo->ptrreg, flujo->lgtope);
-        for (int i = 0; i < flujo->max + 1; i++) {
-            if (*(flujo->dato + i) == '\0')
-                printf ("\\0");
-            else if (*(flujo->dato + i) == '\r')
-                printf ("\\r");
-            else if (*(flujo->dato + i) == '\n')
-                printf ("\\n");
-            else
-                printf ("%c", *(flujo->dato + i));
-        }
-        printf ("\n");
-
+        flujo->ptareg = flujo->ptrreg;
         flujo->ptrreg = 0;
     } else {
         /* Apunta al siguiente registro del tope */
@@ -379,30 +360,11 @@ lee_mas:
             return EOF;
         }
         /* Copia lo que nos queda por leer a 'rsto' */
-        //gawk_free(flujo->rsto);
-        //emalloc(flujo->rsto, char *,
-        //        flujo->max + 1, "conector_trae_registro");
         bzero(flujo->rsto, flujo->max + 1);
         memmove(flujo->rsto, (const void *) (flujo->dato + flujo->ptrreg),
-                flujo->lgtope - flujo->ptrreg);
+                (flujo->lgtope + flujo->ptareg) - flujo->ptrreg);
 
         flujo->ptrreg = (flujo->lgtope - flujo->ptrreg);
-
-        bzero(flujo->dato + flujo->ptrreg,
-              (flujo->max - flujo->ptrreg));
-
-        printf ("B - %d - ", flujo->ptrreg);
-        for (int i = 0; i < flujo->max + 1; i++) {
-            if (*(flujo->rsto + i) == '\0')
-                printf ("\\0");
-            else if (*(flujo->rsto + i) == '\r')
-                printf ("\\r");
-            else if (*(flujo->rsto + i) == '\n')
-                printf ("\\n");
-            else
-                printf ("%c", *(flujo->rsto + i));
-        }
-        printf ("\n");
 
         goto lee_mas;
     }
@@ -461,7 +423,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
         //|| valor_rs.str_value.str != NULL
        )
         return awk_false;
-    
+
     /* Memoriza estructura opaca */
     emalloc(flujo, t_datos_conector *,
         sizeof(t_datos_conector), "conector_tomar_control_de");
@@ -480,12 +442,12 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
 
     if (flujo->df_sal < 0)
       return awk_false;
-    
+
     flujo->tsr = strlen((const char *) valor_rs.str_value.str);
     emalloc(flujo->sdrt, char *,
             flujo->tsr + 1, "conector_tomar_control_de");
     strcpy(flujo->sdrt, (const char *) valor_rs.str_value.str);
-    
+
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
             flujo->max + 1, "conector_tomar_control_de");
@@ -495,7 +457,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
             flujo->max + 1, "conector_tomar_control_de");
     bzero(flujo->dato, flujo->max + 1);
     bzero(flujo->rsto, flujo->max + 1);
-    
+
     /* Entrada */
     inbuf->opaque = flujo;
     inbuf->get_record = conector_trae_registro;
