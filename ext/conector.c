@@ -56,7 +56,7 @@
 
 #include "gawkapi.h"
 
-static const gawk_api_t *api;   /* Conveniencia para usar macros */
+static const gawk_api_t *api; /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
 static const char *ext_version = "extensión conector: versión 1.0";
 
@@ -67,6 +67,13 @@ int plugin_is_GPL_compatible;
 
 #define PENDIENTES 100
 
+typedef struct descriptores_es {
+    int toma_entrada; /* Descriptor fichero servidor en modo escucha */
+    int toma_salida;  /* Descriptor fichero cliente (conexión entrante) */
+} t_conector_es;
+
+static t_conector_es dfes;
+
 /* haz_crea_toma -- Crea toma de escucha */
 
 static awk_value_t *
@@ -76,7 +83,6 @@ haz_crea_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
 haz_crea_toma(int nargs, awk_value_t *resultado)
 #endif
 {
-    int df_cnx_ent;
     awk_value_t puerto;
     struct sockaddr_in servidor;
 
@@ -92,9 +98,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     }
 
     /* Crea toma de entrada */
-    df_cnx_ent = socket(AF_INET, SOCK_STREAM, 0);
+    dfes.toma_entrada = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (df_cnx_ent < 0) {
+    if (dfes.toma_entrada < 0) {
         lintwarn(ext_id, "creatoma: error creando toma de entrada");
         return make_number(-1, resultado);
     }
@@ -105,19 +111,19 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     servidor.sin_addr.s_addr = INADDR_ANY;
     servidor.sin_port = htons((int) puerto.num_value);
 
-    if (bind(df_cnx_ent, (struct sockaddr*) &servidor,
+    if (bind(dfes.toma_entrada, (struct sockaddr*) &servidor,
             sizeof(servidor)) < 0) {
         lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
         return make_number(-1, resultado);
     }
 
     /* Poner toma en modo escucha */
-    if (listen(df_cnx_ent, PENDIENTES) < 0){
+    if (listen(dfes.toma_entrada, PENDIENTES) < 0){
         lintwarn(ext_id, "creatoma: error poniendo toma en escucha");
         return make_number(-1, resultado);
     }
 
-    return make_number(df_cnx_ent, resultado);
+    return make_number(dfes.toma_entrada, resultado);
 }
 
 /* haz_cierra_toma -- Cierra toma de escucha */
@@ -141,9 +147,13 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if ( (close((int) df_cnx_ent.num_value)) < 0) {
-        perror("cierra:");
-        printf ("cierra: df: %d\n", (int) df_cnx_ent.num_value);
+    if (((int) df_cnx_ent.num_value) != dfes.toma_entrada) {
+        lintwarn(ext_id, "cierra: toma escucha incorrecta");
+        return make_number(-1, resultado);
+    }
+
+    if (close(dfes.toma_entrada) < 0) {
+        perror("cierra");
         lintwarn(ext_id, "cierra: error cerrando toma de conexión");
         return make_number(-1, resultado);
     }
@@ -161,7 +171,6 @@ haz_extrae_primera(int nargs, awk_value_t *resultado,
 haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
 {
-    int df_cnx_sal;
     awk_value_t toma_ent;
     struct sockaddr_in cliente;
     socklen_t lnt = (socklen_t) sizeof(cliente);
@@ -177,36 +186,36 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
+    if (((int) toma_ent.num_value) != dfes.toma_entrada) {
+        lintwarn(ext_id, "cierra: toma escucha incorrecta");
+        return make_number(-1, resultado);
+    }
+
     /* Extrae la primera conexión de la cola de conexiones */
-    df_cnx_sal = accept((int) toma_ent.num_value, 
+    dfes.toma_salida = accept(dfes.toma_entrada, 
                         (struct sockaddr*) &cliente, &lnt);
 
-    if (df_cnx_sal < 0) {
+    if (dfes.toma_salida < 0) {
         lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
     }
 
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. Valor de la 
        variable global DFC (Descriptor Fichero Cliente) */
-    return make_number(df_cnx_sal, resultado);
+    return make_number(dfes.toma_salida, resultado);
 }
 
 /* Los datos del puntero oculto */
 
-typedef struct two_way_proc_data {
-    int df_ent;       /* Descriptor fichero cliente (entrada) */
-    int df_sal;       /* Descriptor fichero cliente (salida) */
-    char *tope;
-    char *dato;
-    char *rsto;
-    char *sdrt;       /* Separador de registro. Variable RS de gawk */
-    size_t tsr;       /* Tamaño cadena separador de registro */
-    size_t max;       /* Tamaño máximo asignado al tope */
-    size_t lgtope;    /* Tamaño actual del tope */
-    size_t lgtreg;    /* Tamaño actual del registro */
-    int ptrfin;       /* Puntero final datos dentro de tope */
-    int ptrreg;       /* Puntero inicio registro en tope (actual) */
-    int ptareg;       /* Puntero inicio registro en tope (anterior) */
+typedef struct datos_proc_bidireccional {
+    char *tope;    /* Tope de datos */
+    char *sdrt;    /* Separador de registro. Variable RS de gawk */
+    size_t tsr;    /* Tamaño cadena separador de registro */
+    size_t max;    /* Tamaño máximo asignado al tope */
+    size_t lgtope; /* Tamaño actual del tope */
+    size_t lgtreg; /* Tamaño actual del registro */
+    int ptrreg;    /* Puntero inicio registro en tope (actual) */
+    int ptareg;    /* Puntero inicio registro en tope (anterior) */
 } t_datos_conector;
 
 /* libera_conector --- Libera datos */
@@ -214,17 +223,33 @@ typedef struct two_way_proc_data {
 static void
 libera_conector(t_datos_conector *flujo)
 {
+    if (flujo->ptrreg > 1) {
+        flujo->ptrreg--;
+        return;
+    }
+
     gawk_free(flujo->tope);
-    gawk_free(flujo->dato);
-    gawk_free(flujo->rsto);
-    gawk_free(flujo->sdrt);
     gawk_free(flujo);
 }
 
-/* cerrar_toma_entrada -- Cerrar toma conexión entrada */
+/* long_registro -- Calcula distancia entre dos posiciones de memoria */
+
+static int
+long_registro(char *ini, char *fin)
+{
+    int c = 0;
+    char *i = ini;    
+
+    while (i++ != fin)
+        c++;
+
+    return c;
+}
+
+/* cierra_toma_entrada -- Cerrar toma conexión entrada */
 
 static void
-cerrar_toma_entrada(awk_input_buf_t *iobuf)
+cierra_toma_entrada(awk_input_buf_t *iobuf)
 {
     t_datos_conector *flujo;
 
@@ -232,27 +257,26 @@ cerrar_toma_entrada(awk_input_buf_t *iobuf)
         return;
 
     flujo = (t_datos_conector *) iobuf->opaque;
-
-    close(flujo->df_ent);
     libera_conector(flujo);
 
-    iobuf->fd = -1;
+    close(iobuf->fd);
+
+    iobuf->fd = INVALID_HANDLE;
 }
 
-/* cerrar_toma_salida --- Cerrar toma conexión salida */
+/* cierra_toma_salida --- Cerrar toma conexión salida */
 
 static int
-cerrar_toma_salida(FILE *fp, void *opaque)
+cierra_toma_salida(FILE *fp, void *opaque)
 {
     t_datos_conector *flujo;
 
     if (opaque == NULL)
         return EOF;
 
-    flujo = (t_datos_conector *) opaque;
+    fclose(fp);
 
-    (void) fp;
-    close(flujo->df_sal);
+    flujo = (t_datos_conector *) opaque;
     libera_conector(flujo);
 
     return 0;
@@ -263,15 +287,10 @@ cerrar_toma_salida(FILE *fp, void *opaque)
 static int
 apaga_toma_salida(FILE *fp, void *opaque)
 {
-    t_datos_conector *flujo;
-
-    if (opaque == NULL)
-        return EOF;
-
-    flujo = (t_datos_conector *) opaque;
     (void) fp;
+    (void) opaque;
 
-    return shutdown(flujo->df_sal, SHUT_RDWR);
+    return 0;
 }
 
 /* maneja_error --- De momento no hacer nada */
@@ -283,19 +302,6 @@ maneja_error(FILE *fp, void *opaque)
     (void) opaque;
 
     return 0;
-}
-
-/* long_registro -- Calcula distancia entre dos posiciones de memoria */
-static int
-long_registro(char *ini, char *fin)
-{
-    int c = 0;
-    char *i = ini;    
-
-    while (i++ != fin)
-        c++;
-    
-    return c;
 }
 
 /* conector_trae_registro -- lee un registro cada vez */
@@ -317,12 +323,11 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
         return EOF;
 
     flujo = (t_datos_conector *) iobuf->opaque;
-    
+
     if (flujo->lgtope == 0) {
 lee_mas:
-        bzero(flujo->tope, flujo->max + 1);
-        flujo->lgtope = recv(flujo->df_sal, 
-                             flujo->tope,
+        flujo->lgtope = recv(dfes.toma_salida, 
+                             flujo->tope + flujo->ptrreg,
                              flujo->max - flujo->ptrreg, 0);
 
         if (flujo->lgtope == 0)
@@ -336,10 +341,6 @@ lee_mas:
             return EOF;
         }
 
-        bzero(flujo->dato, flujo->max + 1);
-        strcat(flujo->dato, (const char *)flujo->rsto);
-        strcat(flujo->dato, (const char *)flujo->tope);
-
         flujo->ptareg = flujo->ptrreg;
         flujo->ptrreg = 0;
     } else {
@@ -348,7 +349,7 @@ lee_mas:
     }
 
     /* Apuntar a los datos que se utilizarán para RT */
-    *rt_start = strstr((const char*) flujo->dato + flujo->ptrreg,
+    *rt_start = strstr((const char*) flujo->tope + flujo->ptrreg,
                        (const char*) flujo->sdrt);
     *rt_len = flujo->tsr;
 
@@ -359,19 +360,19 @@ lee_mas:
             lintwarn(ext_id, "trae_registro: registro demasiado extenso");
             return EOF;
         }
-        /* Copia lo que nos queda por leer a 'rsto' */
-        bzero(flujo->rsto, flujo->max + 1);
-        memmove(flujo->rsto, (const void *) (flujo->dato + flujo->ptrreg),
-                (flujo->lgtope + flujo->ptareg) - flujo->ptrreg);
 
-        flujo->ptrreg = (flujo->lgtope - flujo->ptrreg);
+        /* Copia lo que nos queda por leer a 'rsto' */
+        memcpy(flujo->tope, (const void *) (flujo->tope + flujo->ptrreg),
+               (flujo->lgtope + flujo->ptareg) - flujo->ptrreg);
+
+        flujo->ptrreg = (flujo->lgtope + flujo->ptareg) - flujo->ptrreg;
 
         goto lee_mas;
     }
 
-    flujo->lgtreg = long_registro(flujo->dato + flujo->ptrreg, *rt_start);
+    flujo->lgtreg = long_registro(flujo->tope + flujo->ptrreg, *rt_start);
 
-    *out = flujo->dato + flujo->ptrreg;
+    *out = flujo->tope + flujo->ptrreg;
 
     return flujo->lgtreg;
 }
@@ -383,17 +384,19 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
                  void *opaque)
 {
     t_datos_conector *flujo;
-    size_t escrito;
 
     if (opaque == NULL)
         return EOF;
 
+    //(void) fp;
     flujo = (t_datos_conector *) opaque;
-    (void) fp;
-    
-    escrito = send(flujo->df_sal, buf, (size * count), 0);
 
-    return escrito;
+    if (send(dfes.toma_salida, buf, (size * count), 0) < 0) {
+        lintwarn(ext_id, "conector_escribe: registro demasiado extenso");
+        return EOF;
+    }
+
+    return (size * count);
 }
 
 /* conector_puede_aceptar_fichero -- retorna "true" si aceptamos fichero */
@@ -410,19 +413,19 @@ static awk_bool_t
 conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
                           awk_output_buf_t *outbuf)
 {
-    awk_value_t valor_dfc, valor_tpm, valor_rs;
+    awk_value_t valor_tpm, valor_rs;
     t_datos_conector *flujo;
 
     (void) name; /* silenciar avisos */
     if (   inbuf == NULL || outbuf == NULL
-        || !(sym_lookup("DFC", AWK_NUMBER, &valor_dfc)) /* Descriptor de */
-        || valor_dfc.num_value <= 0                     /* fichero cliente */
         || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) /* ToPe Máximo */
         || valor_tpm.num_value <= 0
         || !(sym_lookup("RS",  AWK_STRING, &valor_rs))  /* Valor de RS */
-        //|| valor_rs.str_value.str != NULL
        )
         return awk_false;
+
+    if (dfes.toma_salida < 0)
+      return awk_false;
 
     /* Memoriza estructura opaca */
     emalloc(flujo, t_datos_conector *,
@@ -431,17 +434,6 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     flujo->lgtope = 0;
     flujo->lgtreg = 0;
     flujo->ptrreg = 0;
-    //flujo->df_ent = (int) valor_dfc.num_value;
-    //flujo->df_sal = (int) valor_dfc.num_value;
-
-    /* Extrae la primera conexión de la cola de conexiones */
-    struct sockaddr_in cliente;
-    socklen_t lnt = (socklen_t) sizeof(cliente);
-    flujo->df_sal  = accept((int) valor_dfc.num_value, 
-                            (struct sockaddr*) &cliente, &lnt);
-
-    if (flujo->df_sal < 0)
-      return awk_false;
 
     flujo->tsr = strlen((const char *) valor_rs.str_value.str);
     emalloc(flujo->sdrt, char *,
@@ -450,28 +442,21 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
 
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
-            flujo->max + 1, "conector_tomar_control_de");
-    emalloc(flujo->dato, char *,
-            flujo->max + 1, "conector_tomar_control_de");
-    emalloc(flujo->rsto, char *,
-            flujo->max + 1, "conector_tomar_control_de");
-    bzero(flujo->dato, flujo->max + 1);
-    bzero(flujo->rsto, flujo->max + 1);
+            flujo->max, "conector_tomar_control_de");
 
     /* Entrada */
+    inbuf->fd = dfes.toma_entrada;
     inbuf->opaque = flujo;
     inbuf->get_record = conector_trae_registro;
-    inbuf->close_func = cerrar_toma_entrada;
-    inbuf->fd = (int) valor_dfc.num_value;
+    inbuf->close_func = cierra_toma_entrada;
 
     /* Salida */
-    //outbuf->fp = fdopen(valor_dfc.num_value, "w");
-    outbuf->fp = NULL;
+    outbuf->fp = fdopen(dfes.toma_salida, "w");
     outbuf->opaque = flujo;
     outbuf->gawk_fwrite = conector_escribe;
     outbuf->gawk_fflush = apaga_toma_salida;
     outbuf->gawk_ferror = maneja_error;
-    outbuf->gawk_fclose = cerrar_toma_salida;
+    outbuf->gawk_fclose = cierra_toma_salida;
     outbuf->redirected = awk_true;
 
     return awk_true;
@@ -495,15 +480,15 @@ inicia_conector()
 
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma", haz_crea_toma,      0, 0, awk_false, NULL },
-    { "cierra",   haz_cierra_toma,    0, 0, awk_false, NULL },
-    { "extraep",  haz_extrae_primera, 0, 0, awk_false, NULL },
+    { "creatoma",   haz_crea_toma,      0, 0, awk_false, NULL },
+    { "cierratoma", haz_cierra_toma,    0, 0, awk_false, NULL },
+    { "extraep",    haz_extrae_primera, 0, 0, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma", haz_crea_toma,      0 },
-    { "cierra",   haz_cierra_toma,    0 },
-    { "extraep",  haz_extrae_primera, 0 },
+    { "creatoma",   haz_crea_toma,      0 },
+    { "cierratoma", haz_cierra_toma,    0 },
+    { "extraep",    haz_extrae_primera, 0 },
 };
 #endif
 /* Define función de carga */
