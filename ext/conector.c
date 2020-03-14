@@ -70,10 +70,11 @@ int plugin_is_GPL_compatible;
 typedef struct descriptores_es {
     int toma_entrada; /* Descriptor fichero servidor en modo escucha */
     int toma_salida;  /* Descriptor fichero cliente (conexión entrante) */
-    int libera;       /* Indica memoria liberada */
 } t_conector_es;
 
 static t_conector_es dfes;
+
+static int libera;    /* Indica memoria liberada */
 
 /* haz_crea_toma -- Crea toma de escucha */
 
@@ -128,6 +129,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 }
 
 /* haz_cierra_toma -- Cierra toma de escucha */
+
 static awk_value_t *
 #ifdef API_AWK_V2
 haz_cierra_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
@@ -225,8 +227,8 @@ static void
 libera_conector(t_datos_conector *flujo)
 {
     /* Evita liberar memoria dos veces */
-    if (dfes.libera > 0)
-        dfes.libera--;
+    if (libera > 0)
+        libera--;
     else
         return;
 
@@ -445,10 +447,10 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
             flujo->tsr + 1, "conector_tomar_control_de");
     strcpy(flujo->sdrt, (const char *) valor_rs.str_value.str);
 
-    dfes.libera = 1;
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
             flujo->max, "conector_tomar_control_de");
+    libera = 1;
     
     /* Entrada */
     inbuf->fd = dfes.toma_entrada;
@@ -497,6 +499,7 @@ static awk_ext_func_t lista_de_funciones[] = {
     { "extraep",    haz_extrae_primera, 0 },
 };
 #endif
+
 /* Define función de carga */
 
 dl_load_func(lista_de_funciones, conector, "")
