@@ -70,6 +70,7 @@ int plugin_is_GPL_compatible;
 typedef struct descriptores_es {
     int toma_entrada; /* Descriptor fichero servidor en modo escucha */
     int toma_salida;  /* Descriptor fichero cliente (conexión entrante) */
+    int libera;       /* Indica memoria liberada */
 } t_conector_es;
 
 static t_conector_es dfes;
@@ -223,10 +224,11 @@ typedef struct datos_proc_bidireccional {
 static void
 libera_conector(t_datos_conector *flujo)
 {
-    if (flujo->ptrreg > 1) {
-        flujo->ptrreg--;
+    /* Evita liberar memoria dos veces */
+    if (dfes.libera > 0)
+        dfes.libera--;
+    else
         return;
-    }
 
     gawk_free(flujo->tope);
     gawk_free(flujo);
@@ -259,7 +261,8 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     flujo = (t_datos_conector *) iobuf->opaque;
     libera_conector(flujo);
 
-    close(iobuf->fd);
+    (void) iobuf->fd; /* No se cierra: enlazado a toma de escucha */
+    close(dfes.toma_salida);
 
     iobuf->fd = INVALID_HANDLE;
 }
@@ -274,11 +277,13 @@ cierra_toma_salida(FILE *fp, void *opaque)
     if (opaque == NULL)
         return EOF;
 
-    fclose(fp);
-
     flujo = (t_datos_conector *) opaque;
     libera_conector(flujo);
 
+    /* Flujo y descriptor de salida (conexión cliente) */
+    fclose(fp);
+    close(dfes.toma_salida);
+    
     return 0;
 }
 
@@ -440,10 +445,11 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
             flujo->tsr + 1, "conector_tomar_control_de");
     strcpy(flujo->sdrt, (const char *) valor_rs.str_value.str);
 
+    dfes.libera = 1;
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
             flujo->max, "conector_tomar_control_de");
-
+    
     /* Entrada */
     inbuf->fd = dfes.toma_entrada;
     inbuf->opaque = flujo;
