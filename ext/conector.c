@@ -32,10 +32,6 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-#define API_AWK_V2
-
-#define _GNU_SOURCE
-
 #include <time.h>
 #include <stdio.h>
 #include <errno.h>
@@ -44,15 +40,19 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-
+#include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
+#include <ifaddrs.h>
 
 #include <netinet/in.h>
+
+#include <arpa/inet.h>
 
 #include "gawkapi.h"
 
@@ -65,16 +65,250 @@ static awk_bool_t (*init_func)(void) = inicia_conector;
 
 int plugin_is_GPL_compatible;
 
+#define API_AWK_V2
+
+#define _GNU_SOURCE
+
 #define PENDIENTES 100
+#define LTD(x) (sizeof(x) / sizeof((x)[0]))
+
+typedef struct componente_de_red {
+    char     *tipo;          /* De momento siempre 'ired' */
+    char     *protocolo;     /* De momento siempre 'tcp'  */
+    struct addrinfo *local;  /* Estructura toma local     */
+    struct addrinfo *remoto; /* Estructura toma remota    */
+} t_red;
 
 typedef struct descriptores_es {
-    int toma_entrada; /* Descriptor fichero servidor en modo escucha */
-    int toma_salida;  /* Descriptor fichero cliente (conexión entrante) */
-} t_conector_es;
+    int toma_entrada; /* Descriptor servidor en modo escucha    */
+    int toma_salida;  /* Descriptor cliente (conexión entrante) */
+} t_des;
 
-static t_conector_es dfes;
+typedef struct ruta_de_red {
+    char  *nombre;
+    t_red red;
+    t_des des;
+} t_ruta;
 
-static int libera;    /* Indica memoria liberada */
+/* Variables globales que mantienen su valor */
+
+static t_ruta rt;  /* Ruta de conexión */
+
+static int libera; /* Indica memoria liberada */
+
+/* es_dirip -- modifica criterios evitando a getaddrinfo() resolver nombre */
+
+static int
+es_dirip(char *ip, struct addrinfo *criterios)
+{
+    struct sockaddr_in t4;
+    struct in6_addr    t6;
+
+    int rc = inet_pton(AF_INET, ip, &t4.sin_addr);
+    if (rc == 1) {     /* ¿Dirección IPv4 válida? */
+        criterios->ai_family = AF_INET;
+        criterios->ai_flags |= AI_NUMERICHOST;
+    } else {
+        rc = inet_pton(AF_INET6, ip, &t6);
+        if (rc == 1) { /* ¿Dirección IPv6 válida? */
+            criterios->ai_family = AF_INET6;
+            criterios->ai_flags |= AI_NUMERICHOST;
+        }
+    }
+    return rc;
+}
+
+static awk_bool_t
+es_nodoip (char *nodo, char *puerto, 
+           struct addrinfo *resultados, awk_bool_t *es_local)
+{
+    int r;
+    struct addrinfo criterios;
+
+    /* Criterios para seleccionar las estructuras de tomas IP
+     * que se volcarán a la lista 'resultados' */
+    memset(&criterios, 0, sizeof(struct addrinfo));
+    criterios.ai_family = AF_UNSPEC;     /* Vale IP v4 ó v6 */
+    criterios.ai_socktype = SOCK_STREAM; /* Toma de datos sobre TCP */
+    criterios.ai_flags = AI_PASSIVE;     /* Modo escucha si 'nodo' NULL */
+    criterios.ai_protocol = 0;           /* Cualquier protocolo */
+    criterios.ai_canonname = NULL;
+    criterios.ai_addr = NULL;
+    criterios.ai_next = NULL;
+
+    if ((r = getaddrinfo(nodo, puerto, &criterios, &resultados)) != 0) {
+        fatal(ext_id, "getaddrinfo: %s: %s\n", nodo, gai_strerror(r));
+        return awk_false;
+    }
+
+    /* Averiguamos si el nodo es local */
+    struct ifaddrs *tomas_locales, *i;
+    struct addrinfo *j;
+
+    *es_local = awk_false;
+
+    if (getifaddrs(&tomas_locales) == -1) {
+        fatal(ext_id, "conector: error obteniendo tomas de red locales");
+        return awk_false;
+    }
+
+    void *resul, *local;
+    j = resultados;
+    while (j){
+        switch (j->ai_family) {
+        case AF_INET:
+            resul = &((struct sockaddr_in*)j->ai_addr)->sin_addr;
+            break;
+        case AF_INET6:
+            resul = &((struct sockaddr_in6*)j->ai_addr)->sin6_addr;
+            break;
+        }
+        i = tomas_locales;
+        while (i){
+            switch (i->ifa_addr->sa_family) {
+            case AF_INET:
+                local = &((struct sockaddr_in*)i->ifa_addr)->sin_addr;
+                break;
+            case AF_INET6:
+                local = &((struct sockaddr_in6*)i->ifa_addr)->sin6_addr;
+                break;
+            }
+            if (i->ifa_addr->sa_family == AF_INET) {
+                if (   ntohl(((struct in_addr*)local)->s_addr) 
+                    == ntohl(((struct in_addr*)resul)->s_addr))
+                {
+                    *es_local = awk_true;
+                    goto fin;
+                }
+            } else {
+                if ((memcmp
+                        (((struct in6_addr*)local)->s6_addr,
+                         ((struct in6_addr*)resul)->s6_addr,
+                         sizeof(((struct in6_addr*)resul)->s6_addr))) == 0)
+                {
+                    *es_local = awk_true;
+                    goto fin;
+                }
+            }
+            i = i->ifa_next;
+        }
+        j = j->ai_next;
+    }
+
+fin:
+    freeifaddrs(tomas_locales);
+    return awk_true;
+}
+
+static awk_bool_t
+es_numero(char *texto)
+{
+    int j = strlen(texto);
+    while(j--) {
+        if(isdigit(texto[j]))
+            continue;
+        return awk_false;
+    }
+    return awk_true;
+}
+
+static int
+caracter_fin(const char *txt)
+{
+    if(*txt)
+        return txt[strlen(txt + 1)];
+    else
+        return -1;
+}
+
+static int
+caracter_ini(const char *txt)
+{
+    if(*txt)
+        return txt[0];
+    else
+        return -1;
+}
+
+static int
+cuenta_crtrs(const char *txt, char c)
+{
+    int i, cnt = 0;
+    for(i = 0; txt[i]; i++)
+        if(txt[i] == c)
+            cnt++;
+    return cnt;
+}
+
+/* Nombres especiales para los ficheros de red
+ * 
+ * /tipo-red/protocolo/ip-local/puerto-local/nombre-ip-remoto/puerto-remoto
+ *
+ * Ejemplos: 
+ *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
+ *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
+ */
+
+/* es_fichero_especial -- Verifica/crea ruta de un nombre de fichero de red */
+
+static awk_bool_t
+es_fichero_especial(const char *nombre, t_ruta *ruta)
+{
+    int c;
+    char *campo[6];
+    char fichero_red[256];
+    awk_bool_t es_local;
+    
+    strcpy(fichero_red, nombre);
+
+    if (   cuenta_crtrs(fichero_red, '/') != 6
+        || caracter_ini(fichero_red) == -1
+        || caracter_fin(fichero_red) == -1
+        || caracter_ini(fichero_red) != '/'
+        || caracter_fin(fichero_red) == '/'
+       )
+        return awk_false;
+
+    campo[0] = strtok(fichero_red, "/");
+    for (c = 0; (c < LTD(campo) - 1) && campo[c] != NULL;)
+        campo[++c] = strtok(NULL, "/");
+
+    if (   c != (LTD(campo) - 1)
+        || strcmp(campo[0], "ired") != 0
+        || strcmp(campo[1], "tcp") != 0
+        || !es_numero(campo[3])
+        || !es_numero(campo[5])
+       )
+        return awk_false;
+
+    if (   strcmp(campo[2], "0") == 0
+        && strcmp(campo[3], "0") == 0
+        && strcmp(campo[4], "0") != 0
+        && atoi(campo[5]) > 0
+        && es_nodoip(campo[4], campo[5], rt.red.remoto, &es_local)
+        && !es_local) 
+    { /* Cliente */
+        // return awk_true;
+        return awk_false; /* De momento no */
+    } else if 
+       (   strcmp(campo[4], "0") == 0
+        && strcmp(campo[5], "0") == 0
+        && strcmp(campo[2], "0") != 0
+        && atoi(campo[3]) > 0
+        && es_nodoip(campo[2], campo[3], rt.red.local, &es_local)
+        && es_local) 
+    { /* Servidor */
+        return awk_true;
+    } else
+        return awk_false;
+
+    return awk_false;
+}
+
+
+/**
+ * Funciones que proporciona 'conector.c' a GAWK
+ */
 
 /* haz_crea_toma -- Crea toma de escucha */
 
@@ -100,9 +334,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     }
 
     /* Crea toma de entrada */
-    dfes.toma_entrada = socket(AF_INET, SOCK_STREAM, 0);
+    rt.des.toma_entrada = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (dfes.toma_entrada < 0) {
+    if (rt.des.toma_entrada < 0) {
         lintwarn(ext_id, "creatoma: error creando toma de entrada");
         return make_number(-1, resultado);
     }
@@ -113,19 +347,19 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     servidor.sin_addr.s_addr = INADDR_ANY;
     servidor.sin_port = htons((int) puerto.num_value);
 
-    if (bind(dfes.toma_entrada, (struct sockaddr*) &servidor,
+    if (bind(rt.des.toma_entrada, (struct sockaddr*) &servidor,
             sizeof(servidor)) < 0) {
         lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
         return make_number(-1, resultado);
     }
 
     /* Poner toma en modo escucha */
-    if (listen(dfes.toma_entrada, PENDIENTES) < 0){
+    if (listen(rt.des.toma_entrada, PENDIENTES) < 0){
         lintwarn(ext_id, "creatoma: error poniendo toma en escucha");
         return make_number(-1, resultado);
     }
 
-    return make_number(dfes.toma_entrada, resultado);
+    return make_number(rt.des.toma_entrada, resultado);
 }
 
 /* haz_cierra_toma -- Cierra toma de escucha */
@@ -150,12 +384,12 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if (((int) df_cnx_ent.num_value) != dfes.toma_entrada) {
+    if (((int) df_cnx_ent.num_value) != rt.des.toma_entrada) {
         lintwarn(ext_id, "cierra: toma escucha incorrecta");
         return make_number(-1, resultado);
     }
 
-    if (close(dfes.toma_entrada) < 0) {
+    if (close(rt.des.toma_entrada) < 0) {
         perror("cierra");
         lintwarn(ext_id, "cierra: error cerrando toma de conexión");
         return make_number(-1, resultado);
@@ -189,39 +423,43 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if (((int) toma_ent.num_value) != dfes.toma_entrada) {
+    if (((int) toma_ent.num_value) != rt.des.toma_entrada) {
         lintwarn(ext_id, "cierra: toma escucha incorrecta");
         return make_number(-1, resultado);
     }
 
     /* Extrae la primera conexión de la cola de conexiones */
-    dfes.toma_salida = accept(dfes.toma_entrada, 
+    rt.des.toma_salida = accept(rt.des.toma_entrada, 
                         (struct sockaddr*) &cliente, &lnt);
 
-    if (dfes.toma_salida < 0) {
+    if (rt.des.toma_salida < 0) {
         lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
     }
 
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. Valor de la 
        variable global DFC (Descriptor Fichero Cliente) */
-    return make_number(dfes.toma_salida, resultado);
+    return make_number(rt.des.toma_salida, resultado);
 }
+
+/**
+ * Procesador bidireccional que proporciona 'conector.c' a GAWK
+ */
 
 /* Los datos del puntero oculto */
 
 typedef struct datos_proc_bidireccional {
-    char *tope;    /* Tope de datos */
-    char *sdrt;    /* Separador de registro. Variable RS de gawk */
-    size_t tsr;    /* Tamaño cadena separador de registro */
-    size_t max;    /* Tamaño máximo asignado al tope */
-    size_t lgtope; /* Tamaño actual del tope */
-    size_t lgtreg; /* Tamaño actual del registro */
-    int ptrreg;    /* Puntero inicio registro en tope (actual) */
-    int ptareg;    /* Puntero inicio registro en tope (anterior) */
+    char   *tope;  /* Tope de datos                              */
+    char   *sdrt;  /* Separador de registro. Variable RS de gawk */
+    size_t tsr;    /* Tamaño cadena separador de registro        */
+    size_t max;    /* Tamaño máximo asignado al tope             */
+    size_t lgtope; /* Tamaño actual del tope                     */
+    size_t lgtreg; /* Tamaño actual del registro                 */
+    int    ptrreg; /* Puntero inicio registro en tope (actual)   */
+    int    ptareg; /* Puntero inicio registro en tope (anterior) */
 } t_datos_conector;
 
-/* libera_conector --- Libera datos */
+/* libera_conector -- Libera datos */
 
 static void
 libera_conector(t_datos_conector *flujo)
@@ -232,6 +470,7 @@ libera_conector(t_datos_conector *flujo)
     else
         return;
 
+    gawk_free(flujo->sdrt);
     gawk_free(flujo->tope);
     gawk_free(flujo);
 }
@@ -264,7 +503,7 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     libera_conector(flujo);
 
     (void) iobuf->fd; /* No se cierra: enlazado a toma de escucha */
-    close(dfes.toma_salida);
+    close(rt.des.toma_salida);
 
     iobuf->fd = INVALID_HANDLE;
 }
@@ -284,7 +523,7 @@ cierra_toma_salida(FILE *fp, void *opaque)
 
     /* Flujo y descriptor de salida (conexión cliente) */
     fclose(fp);
-    close(dfes.toma_salida);
+    close(rt.des.toma_salida);
     
     return 0;
 }
@@ -333,7 +572,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     if (flujo->lgtope == 0) {
 lee_mas:
-        flujo->lgtope = recv(dfes.toma_salida, 
+        flujo->lgtope = recv(rt.des.toma_salida, 
                              flujo->tope + flujo->ptrreg,
                              flujo->max - flujo->ptrreg, 0);
 
@@ -398,7 +637,7 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
     //(void) fp;
     flujo = (t_datos_conector *) opaque;
 
-    if (send(dfes.toma_salida, buf, (size * count), 0) < 0) {
+    if (send(rt.des.toma_salida, buf, (size * count), 0) < 0) {
         lintwarn(ext_id, "conector_escribe: registro demasiado extenso");
         return EOF;
     }
@@ -411,7 +650,8 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
 static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
 {
-    return (name != NULL && strcmp(name, "/ired") == 0);
+    return (name != NULL 
+            && es_fichero_especial(name, &rt));
 }
 
 /* conector_tomar_control_de -- prepara procesador bidireccional */
@@ -431,7 +671,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
        )
         return awk_false;
 
-    if (dfes.toma_salida < 0)
+    if (rt.des.toma_salida < 0)
       return awk_false;
 
     /* Memoriza estructura opaca */
@@ -453,13 +693,13 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     libera = 1;
     
     /* Entrada */
-    inbuf->fd = dfes.toma_entrada;
+    inbuf->fd = rt.des.toma_entrada;
     inbuf->opaque = flujo;
     inbuf->get_record = conector_trae_registro;
     inbuf->close_func = cierra_toma_entrada;
 
     /* Salida */
-    outbuf->fp = fdopen(dfes.toma_salida, "w");
+    outbuf->fp = fdopen(rt.des.toma_salida, "w");
     outbuf->opaque = flujo;
     outbuf->gawk_fwrite = conector_escribe;
     outbuf->gawk_fflush = apaga_toma_salida;
@@ -470,6 +710,8 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     return awk_true;
  }
 
+/* Registra nuevo procesador bidireccional llamado 'conector' */
+
 static awk_two_way_processor_t conector_es = {
     "conector",
     conector_puede_aceptar_fichero,
@@ -477,7 +719,7 @@ static awk_two_way_processor_t conector_es = {
     NULL
 };
 
-/* inicia_conector --- Incicia conector bidireccional */
+/* inicia_conector -- Incicia conector bidireccional */
 
 static awk_bool_t
 inicia_conector()
