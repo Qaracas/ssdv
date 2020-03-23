@@ -120,7 +120,7 @@ es_dirip(char *ip, struct addrinfo *criterios)
 
 static awk_bool_t
 es_nodoip (char *nodo, char *puerto, 
-           struct addrinfo *resultados, awk_bool_t *es_local)
+           struct addrinfo **resultados, awk_bool_t *es_local)
 {
     int r;
     struct addrinfo criterios;
@@ -130,13 +130,8 @@ es_nodoip (char *nodo, char *puerto,
     memset(&criterios, 0, sizeof(struct addrinfo));
     criterios.ai_family = AF_UNSPEC;     /* Vale IP v4 ó v6 */
     criterios.ai_socktype = SOCK_STREAM; /* Toma de datos sobre TCP */
-    criterios.ai_flags = AI_PASSIVE;     /* Modo escucha si 'nodo' NULL */
-    criterios.ai_protocol = 0;           /* Cualquier protocolo */
-    criterios.ai_canonname = NULL;
-    criterios.ai_addr = NULL;
-    criterios.ai_next = NULL;
 
-    if ((r = getaddrinfo(nodo, puerto, &criterios, &resultados)) != 0) {
+    if ((r = getaddrinfo(nodo, puerto, &criterios, resultados)) != 0) {
         fatal(ext_id, "getaddrinfo: %s: %s\n", nodo, gai_strerror(r));
         return awk_false;
     }
@@ -153,7 +148,7 @@ es_nodoip (char *nodo, char *puerto,
     }
 
     void *resul, *local;
-    j = resultados;
+    j = *resultados;
     while (j){
         switch (j->ai_family) {
         case AF_INET:
@@ -257,7 +252,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
     int c;
     char *campo[6];
     char fichero_red[256];
-    awk_bool_t es_local;
+    awk_bool_t es_local = awk_false;
     
     strcpy(fichero_red, nombre);
 
@@ -285,7 +280,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[3], "0") == 0
         && strcmp(campo[4], "0") != 0
         && atoi(campo[5]) > 0
-        && es_nodoip(campo[4], campo[5], rt.red.remoto, &es_local)
+        && es_nodoip(campo[4], campo[5], &rt.red.remoto, &es_local)
         && !es_local) 
     { /* Cliente */
         // return awk_true;
@@ -295,7 +290,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[5], "0") == 0
         && strcmp(campo[2], "0") != 0
         && atoi(campo[3]) > 0
-        && es_nodoip(campo[2], campo[3], rt.red.local, &es_local)
+        && es_nodoip(campo[2], campo[3], &rt.red.local, &es_local)
         && es_local) 
     { /* Servidor */
         return awk_true;
@@ -319,7 +314,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
 haz_crea_toma(int nargs, awk_value_t *resultado)
 #endif
 {
-    awk_value_t puerto;
+    awk_value_t nombre;
     struct sockaddr_in servidor;
 
     /* Sólo acepta 1 argumento */
@@ -328,36 +323,43 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if (! get_argument(0, AWK_NUMBER, &puerto)) {   
+    if (! get_argument(0, AWK_STRING, &nombre)) {
         lintwarn(ext_id, "creatoma: tipo de argumento incorrecto");
         return make_number(-1, resultado);
     }
 
-    /* Crea toma de entrada */
-    rt.des.toma_entrada = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (rt.des.toma_entrada < 0) {
-        lintwarn(ext_id, "creatoma: error creando toma de entrada");
-        return make_number(-1, resultado);
+    if (   nombre.str_value.str != NULL
+        && es_fichero_especial((const char *) nombre.str_value.str, &rt)
+        && rt.red.local  != NULL
+        && rt.red.remoto == NULL)
+    {
+        emalloc(rt.nombre, char *,
+                strlen((const char *) nombre.str_value.str) + 1, 
+                "haz_crea_toma");
+        strcpy(rt.nombre, (const char *) nombre.str_value.str);
+    } else {
+        fatal(ext_id, "creatoma: fichero de red inválido o no local");
     }
 
-    /* Asocia toma de entrada a una dirección IP y un puerto */
-    bzero(&servidor, sizeof(servidor));
-    servidor.sin_family = AF_INET;
-    servidor.sin_addr.s_addr = INADDR_ANY;
-    servidor.sin_port = htons((int) puerto.num_value);
-
-    if (bind(rt.des.toma_entrada, (struct sockaddr*) &servidor,
-            sizeof(servidor)) < 0) {
-        lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
-        return make_number(-1, resultado);
+    struct addrinfo *rp;
+    for (rp = rt.red.local; rp != NULL; rp = rp->ai_next) {
+        /* Crea toma de entrada */
+        rt.des.toma_entrada = socket(rp->ai_family, rp->ai_socktype,
+                     rp->ai_protocol);
+        if (rt.des.toma_entrada == -1)
+            continue;
+        /* Asocia toma de entrada a una dirección IP y un puerto */
+        if (bind(rt.des.toma_entrada, rp->ai_addr, rp->ai_addrlen) == 0)
+            break; /* Hecho */
+        close(rt.des.toma_entrada);
     }
+
+    if (rp == NULL)
+        fatal(ext_id, "creatoma: error creando toma de entrada");
 
     /* Poner toma en modo escucha */
-    if (listen(rt.des.toma_entrada, PENDIENTES) < 0){
-        lintwarn(ext_id, "creatoma: error poniendo toma en escucha");
-        return make_number(-1, resultado);
-    }
+    if (listen(rt.des.toma_entrada, PENDIENTES) < 0)
+        fatal(ext_id, "creatoma: error poniendo toma en escucha");
 
     return make_number(rt.des.toma_entrada, resultado);
 }
@@ -650,8 +652,10 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
 static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
 {
-    return (name != NULL 
-            && es_fichero_especial(name, &rt));
+    return (   name != NULL
+            && strcmp(name, rt.nombre) == 0 /* Toma registrada 'creatoma' */
+            && (   rt.red.local  != NULL    /* De momento sólo local */
+                || rt.red.remoto != NULL));
 }
 
 /* conector_tomar_control_de -- prepara procesador bidireccional */
