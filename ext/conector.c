@@ -72,22 +72,16 @@ int plugin_is_GPL_compatible;
 #define PENDIENTES 100
 #define LTD(x) (sizeof(x) / sizeof((x)[0]))
 
-typedef struct componente_de_red {
-    char     *tipo;          /* De momento siempre 'ired' */
-    char     *protocolo;     /* De momento siempre 'tcp'  */
-    struct addrinfo *local;  /* Estructura toma local     */
-    struct addrinfo *remoto; /* Estructura toma remota    */
-} t_red;
-
 typedef struct descriptores_es {
     int toma_entrada; /* Descriptor servidor en modo escucha    */
     int toma_salida;  /* Descriptor cliente (conexión entrante) */
 } t_des;
 
 typedef struct ruta_de_red {
-    char  *nombre;
-    t_red red;
-    t_des des;
+    char            *nombre; /* Nombre fichero de red */
+    awk_bool_t      local;   /* ¿Toma local o remota? */
+    struct addrinfo *stoma;  /* Estructura de la toma */
+    t_des           des;     /* Descriptores E/S      */
 } t_ruta;
 
 /* Variables globales que mantienen su valor */
@@ -252,8 +246,9 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
     int c;
     char *campo[6];
     char fichero_red[256];
-    awk_bool_t es_local = awk_false;
-    
+
+    rt.local = awk_false;
+
     strcpy(fichero_red, nombre);
 
     if (   cuenta_crtrs(fichero_red, '/') != 6
@@ -280,8 +275,8 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[3], "0") == 0
         && strcmp(campo[4], "0") != 0
         && atoi(campo[5]) > 0
-        && es_nodoip(campo[4], campo[5], &rt.red.remoto, &es_local)
-        && !es_local) 
+        && es_nodoip(campo[4], campo[5], &rt.stoma, &rt.local)
+        && !rt.local) 
     { /* Cliente */
         // return awk_true;
         return awk_false; /* De momento no */
@@ -290,8 +285,8 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[5], "0") == 0
         && strcmp(campo[2], "0") != 0
         && atoi(campo[3]) > 0
-        && es_nodoip(campo[2], campo[3], &rt.red.local, &es_local)
-        && es_local) 
+        && es_nodoip(campo[2], campo[3], &rt.stoma, &rt.local)
+        && rt.local) 
     { /* Servidor */
         return awk_true;
     } else
@@ -318,37 +313,32 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     struct sockaddr_in servidor;
 
     /* Sólo acepta 1 argumento */
-    if (nargs != 1) {
-        lintwarn(ext_id, "creatoma: nº de argumentos incorrecto");
-        return make_number(-1, resultado);
-    }
+    if (nargs != 1)
+        fatal(ext_id, "creatoma: nº de argumentos incorrecto");
 
-    if (! get_argument(0, AWK_STRING, &nombre)) {
-        lintwarn(ext_id, "creatoma: tipo de argumento incorrecto");
-        return make_number(-1, resultado);
-    }
+    if (! get_argument(0, AWK_STRING, &nombre))
+        fatal(ext_id, "creatoma: tipo de argumento incorrecto");
 
     if (   nombre.str_value.str != NULL
         && es_fichero_especial((const char *) nombre.str_value.str, &rt)
-        && rt.red.local  != NULL
-        && rt.red.remoto == NULL)
+        && rt.local)
     {
         emalloc(rt.nombre, char *,
                 strlen((const char *) nombre.str_value.str) + 1, 
                 "haz_crea_toma");
         strcpy(rt.nombre, (const char *) nombre.str_value.str);
     } else {
-        fatal(ext_id, "creatoma: fichero de red inválido o no local");
+        fatal(ext_id, "creatoma: fichero de red remoto o no válido");
     }
 
     struct addrinfo *rp;
-    for (rp = rt.red.local; rp != NULL; rp = rp->ai_next) {
-        /* Crea toma de entrada */
+    for (rp = rt.stoma; rp != NULL; rp = rp->ai_next) {
+        /* Crear toma de entrada y guardar df asociado a ella */
         rt.des.toma_entrada = socket(rp->ai_family, rp->ai_socktype,
                      rp->ai_protocol);
         if (rt.des.toma_entrada == -1)
             continue;
-        /* Asocia toma de entrada a una dirección IP y un puerto */
+        /* Asociar toma de entrada a una dirección IP y un puerto */
         if (bind(rt.des.toma_entrada, rp->ai_addr, rp->ai_addrlen) == 0)
             break; /* Hecho */
         close(rt.des.toma_entrada);
@@ -356,6 +346,8 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 
     if (rp == NULL)
         fatal(ext_id, "creatoma: error creando toma de entrada");
+
+    freeaddrinfo(rt.stoma); /* Ya no se necesita */
 
     /* Poner toma en modo escucha */
     if (listen(rt.des.toma_entrada, PENDIENTES) < 0)
@@ -373,28 +365,37 @@ haz_cierra_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
 haz_cierra_toma(int nargs, awk_value_t *resultado)
 #endif
 {
-    awk_value_t df_cnx_ent;
+    awk_value_t nombre;
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "cierra: nº de argumentos incorrecto");
+        lintwarn(ext_id, "cierratoma: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
-    if (! get_argument(0, AWK_NUMBER, &df_cnx_ent)) {   
-        lintwarn(ext_id, "cierra: tipo de argumento incorrecto");
+    if (! get_argument(0, AWK_STRING, &nombre)) {   
+        lintwarn(ext_id, "cierratoma: tipo de argumento incorrecto");
         return make_number(-1, resultado);
     }
 
-    if (((int) df_cnx_ent.num_value) != rt.des.toma_entrada) {
-        lintwarn(ext_id, "cierra: toma escucha incorrecta");
+    if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0) {
+        lintwarn(ext_id, "cierratoma: toma no válida");
         return make_number(-1, resultado);
+    }
+
+    if (fsync(rt.des.toma_entrada < 0)) {
+        perror("fsync");
+        lintwarn(ext_id, "cierratoma: error limpiando toma");
+    }
+
+    if (shutdown(rt.des.toma_entrada, SHUT_RDWR) < 0) {
+        perror("shutdown");
+        lintwarn(ext_id, "cierratoma: error apagando toma");
     }
 
     if (close(rt.des.toma_entrada) < 0) {
         perror("cierra");
-        lintwarn(ext_id, "cierra: error cerrando toma de conexión");
-        return make_number(-1, resultado);
+        lintwarn(ext_id, "cierratoma: error cerrando toma");
     }
 
     return make_number(0, resultado);
@@ -410,37 +411,30 @@ haz_extrae_primera(int nargs, awk_value_t *resultado,
 haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
 {
-    awk_value_t toma_ent;
+    awk_value_t nombre;
     struct sockaddr_in cliente;
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
     /* Sólo acepta 1 argumento */
-    if (nargs != 1) {
-        lintwarn(ext_id, "extraep: nº de argumentos incorrecto");
-        return make_number(-1, resultado);
-    }
+    if (nargs != 1)
+        fatal(ext_id, "traepctoma: nº de argumentos incorrecto");
 
-    if (! get_argument(0, AWK_NUMBER, &toma_ent)) {
-        lintwarn(ext_id, "extraep: tipo de argumento incorrecto");
-        return make_number(-1, resultado);
-    }
+    if (! get_argument(0, AWK_STRING, &nombre))
+        fatal(ext_id, "traepctoma: tipo de argumento incorrecto");
 
-    if (((int) toma_ent.num_value) != rt.des.toma_entrada) {
-        lintwarn(ext_id, "cierra: toma escucha incorrecta");
-        return make_number(-1, resultado);
-    }
+    if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0)
+        fatal(ext_id, "traepctoma: toma escucha incorrecta");
 
-    /* Extrae la primera conexión de la cola de conexiones */
+    /* Extraer primera conexión de la cola de conexiones */
     rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                        (struct sockaddr*) &cliente, &lnt);
+                                (struct sockaddr*) &cliente,
+                                &lnt);
 
-    if (rt.des.toma_salida < 0) {
-        lintwarn(ext_id, "creatoma: error enlazando toma de entrada");
-    }
+    if (rt.des.toma_salida < 0)
+        fatal(ext_id, "traepctoma: error enlazando toma de entrada");
 
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
-       toma de conexión recién creada con el cliente. Valor de la 
-       variable global DFC (Descriptor Fichero Cliente) */
+       toma de conexión recién creada con el cliente. */
     return make_number(rt.des.toma_salida, resultado);
 }
 
@@ -504,8 +498,7 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     flujo = (t_datos_conector *) iobuf->opaque;
     libera_conector(flujo);
 
-    (void) iobuf->fd; /* No se cierra: enlazado a toma de escucha */
-    close(rt.des.toma_salida);
+    /* haz_cierra_toma() hace esto (conexión servicor) */
 
     iobuf->fd = INVALID_HANDLE;
 }
@@ -520,13 +513,28 @@ cierra_toma_salida(FILE *fp, void *opaque)
     if (opaque == NULL)
         return EOF;
 
+    /* Ignorar flujo en favor del descriptor de fichero */
+    (void) fp;
+
     flujo = (t_datos_conector *) opaque;
     libera_conector(flujo);
 
-    /* Flujo y descriptor de salida (conexión cliente) */
-    fclose(fp);
-    close(rt.des.toma_salida);
-    
+    /* Cerrar descriptor de salida (conexión cliente) */
+    if (fsync(rt.des.toma_salida) < 0) {
+        perror("fsync");
+        lintwarn(ext_id, "cierra_toma_salida: error limpiando salida");
+    }
+
+    if (shutdown(rt.des.toma_salida, SHUT_RDWR) < 0) {
+        perror("shutdown");
+        lintwarn(ext_id, "cierra_toma_salida: error apagando salida");
+    }
+
+    if(close(rt.des.toma_salida) < 0) {
+        perror("close");
+        lintwarn(ext_id, "cierra_toma_salida: error cerrando salida");
+    }
+
     return 0;
 }
 
@@ -654,8 +662,7 @@ conector_puede_aceptar_fichero(const char *name)
 {
     return (   name != NULL
             && strcmp(name, rt.nombre) == 0 /* Toma registrada 'creatoma' */
-            && (   rt.red.local  != NULL    /* De momento sólo local */
-                || rt.red.remoto != NULL));
+            && rt.local);                   /* De momento sólo local */
 }
 
 /* conector_tomar_control_de -- prepara procesador bidireccional */
@@ -736,13 +743,13 @@ inicia_conector()
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma",   haz_crea_toma,      0, 0, awk_false, NULL },
     { "cierratoma", haz_cierra_toma,    0, 0, awk_false, NULL },
-    { "extraep",    haz_extrae_primera, 0, 0, awk_false, NULL },
+    { "traepctoma", haz_extrae_primera, 0, 0, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma",   haz_crea_toma,      0 },
     { "cierratoma", haz_cierra_toma,    0 },
-    { "extraep",    haz_extrae_primera, 0 },
+    { "traepctoma", haz_extrae_primera, 0 },
 };
 #endif
 
