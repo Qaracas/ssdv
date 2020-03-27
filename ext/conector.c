@@ -66,11 +66,22 @@ static awk_bool_t (*init_func)(void) = inicia_conector;
 int plugin_is_GPL_compatible;
 
 #define API_AWK_V2
+//#define API_EPOLL_LINUX
+//#define API_SELECT_LINUX
+#define SIN_SONDEAR_ES
 
 #define _GNU_SOURCE
 
-#define PENDIENTES 100
+#define MAX_CNX_PENDIENTES 100 /* Máximo de conexiones pendientes permitidas */
+#define MAX_EVENTOS        10
 #define LTD(x) (sizeof(x) / sizeof((x)[0]))
+
+#ifdef API_EPOLL_LINUX
+#include <sys/epoll.h>
+#else
+#include <sys/select.h>
+#endif
+
 
 typedef struct descriptores_es {
     int toma_entrada; /* Descriptor servidor en modo escucha    */
@@ -350,7 +361,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     freeaddrinfo(rt.stoma); /* Ya no se necesita */
 
     /* Poner toma en modo escucha */
-    if (listen(rt.des.toma_entrada, PENDIENTES) < 0)
+    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0)
         fatal(ext_id, "creatoma: error poniendo toma en escucha");
 
     return make_number(rt.des.toma_entrada, resultado);
@@ -425,14 +436,121 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0)
         fatal(ext_id, "traepctoma: toma escucha incorrecta");
 
-    /* Extraer primera conexión de la cola de conexiones */
-    rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                                (struct sockaddr*) &cliente,
-                                &lnt);
+#ifdef API_EPOLL_LINUX
+    int dfsonda; /* descriptor fichero de la sonda E/S */
+    struct epoll_event ev, eventos[MAX_EVENTOS];
 
-    if (rt.des.toma_salida < 0)
-        fatal(ext_id, "traepctoma: error enlazando toma de entrada");
+    /* Crear sonda para monitorizar eventos de E/S */
+    dfsonda = epoll_create1(0);
+    if (dfsonda == -1) {
+        perror("epoll_create1");
+        fatal(ext_id, "traepctoma: error sondeando E/S");
+    }
 
+    /* Nos interesa sondear la 'toma_entrada' */
+    ev.data.fd = rt.des.toma_entrada;
+    /* Y ver si está preparada para leer datos */
+    ev.eventos = EPOLLIN;
+    /* Por eso la añadimos a nuestra lista de interés */
+    if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_entrada, &ev) == -1) {
+        perror("epoll_ctl");
+        fatal(ext_id, "traepctoma: error lista sondeo entrada");
+    }
+
+    while (1) {
+        /* Parar hasta que llegue evento */
+        nfds = epoll_wait(dfsonda, eventos, MAX_EVENTOS, -1);
+        if (nfds == -1) {
+            perror("epoll_wait");
+            fatal(ext_id, "traepctoma: error esperando eventos E/S");
+        }
+        /* Atender tomas con eventos de entrada pendientes */
+        for (n = 0; n < nfds; ++n) {
+            if (eventos[n].data.fd == rt.des.toma_entrada) {
+                while (1) {
+                    /* Extraer primera conexión de la cola de conexiones */
+                    rt.des.toma_salida = accept(rt.des.toma_entrada, 
+                                                (struct sockaddr*) &cliente,
+                                                &lnt);
+                    /* ¿Es cliente? */
+                    if (   rt.des.toma_salida < 0 
+                        && (EAGAIN == errno || EWOULDBLOCK == errno))
+                        break;
+                    /* Sí; es Cliente */
+                    fcntl(rt.des.toma_salida, F_SETFL, O_NONBLOCK);
+                    ev.eventos = EPOLLIN | EPOLLET;
+                    ev.data.fd = rt.des.toma_salida;
+                    if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_salida, 
+                                  &ev) < 0) {
+                        perror("epoll_ctl");
+                        fatal(ext_id, "traepctoma: error lista sondeo salida");
+                    }
+                    /* POR HACER: Función para anuciar cliente */
+                }
+            } else {
+                goto atiende_peticion;
+            }
+        }
+    }
+#endif
+#ifdef API_SELECT_LINUX
+    int i;
+    fd_set lista_df_activos, lista_df_entrada;
+
+    /* Inizilizar colección de tomas activas */
+    FD_ZERO(&lista_df_activos);
+    FD_SET(rt.des.toma_entrada, &lista_df_activos);
+
+    while (1) {
+        /* Parar hasta que llegue evento a una o más tomas activas */
+        lista_df_entrada = lista_df_activos;
+        printf ("Esperando eventos... \n");
+        if (select(FD_SETSIZE, &lista_df_entrada, NULL, NULL, NULL) < 0) {
+            perror ("select");
+            fatal(ext_id, "traepctoma: error esperando eventos E/S");
+        }
+        /* Atender tomas con eventos de entrada pendientes */
+        for (i = 0; i < FD_SETSIZE; ++i) {
+            if (FD_ISSET(i, &lista_df_entrada)) {
+                if (i == rt.des.toma_entrada) {
+                    while (1) {
+                        /* Extraer primera conexión de la cola de conexiones */
+                        rt.des.toma_salida = accept(rt.des.toma_entrada, 
+                                                    (struct sockaddr*) &cliente,
+                                                    &lnt);
+                        /* ¿Es cliente? */
+                        if (   rt.des.toma_salida < 0 
+                            && (EAGAIN == errno || EWOULDBLOCK == errno))
+                            break;
+                        /* Sí; es Cliente */
+                        FD_SET(rt.des.toma_salida, &lista_df_activos);
+                        /* POR HACER: Función para anuciar cliente */
+                    }
+                } else {
+                    FD_CLR(i, &lista_df_activos);
+                    goto atiende_peticion;
+                }
+            }
+        }
+    }
+#endif
+#ifdef SIN_SONDEAR_ES
+    while (1) {
+        /* Extraer primera conexión de la cola de conexiones */
+        rt.des.toma_salida = accept(rt.des.toma_entrada, 
+                                    (struct sockaddr*) &cliente,
+                                    &lnt);
+        /* ¿Es cliente? */
+        if (   rt.des.toma_salida < 0 
+            && (EAGAIN == errno || EWOULDBLOCK == errno))
+            continue;
+        /* Sí; es Cliente */
+        /* POR HACER: Función para anuciar cliente */
+        goto atiende_peticion;
+    }
+#endif
+
+atiende_peticion:
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. */
     return make_number(rt.des.toma_salida, resultado);
