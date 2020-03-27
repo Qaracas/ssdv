@@ -350,14 +350,19 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
         if (rt.des.toma_entrada == -1)
             continue;
         /* Asociar toma de entrada a una dirección IP y un puerto */
+        int activo = 1;
+        setsockopt(rt.des.toma_entrada, SOL_SOCKET, SO_REUSEADDR,
+                   &activo, sizeof(activo));
         if (bind(rt.des.toma_entrada, rp->ai_addr, rp->ai_addrlen) == 0)
             break; /* Hecho */
         close(rt.des.toma_entrada);
     }
 
-    if (rp == NULL)
+    if (rp == NULL) {
+        perror("bind");
         fatal(ext_id, "creatoma: error creando toma de entrada");
-
+    }
+    
     freeaddrinfo(rt.stoma); /* Ya no se necesita */
 
     /* Poner toma en modo escucha */
@@ -392,11 +397,6 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
     if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0) {
         lintwarn(ext_id, "cierratoma: toma no válida");
         return make_number(-1, resultado);
-    }
-
-    if (fsync(rt.des.toma_entrada < 0)) {
-        perror("fsync");
-        lintwarn(ext_id, "cierratoma: error limpiando toma");
     }
 
     if (shutdown(rt.des.toma_entrada, SHUT_RDWR) < 0) {
@@ -438,6 +438,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 
 #ifdef API_EPOLL_LINUX
     int dfsonda; /* descriptor fichero de la sonda E/S */
+    int nfds, n;
     struct epoll_event ev, eventos[MAX_EVENTOS];
 
     /* Crear sonda para monitorizar eventos de E/S */
@@ -450,7 +451,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     /* Nos interesa sondear la 'toma_entrada' */
     ev.data.fd = rt.des.toma_entrada;
     /* Y ver si está preparada para leer datos */
-    ev.eventos = EPOLLIN;
+    ev.events = EPOLLIN;
     /* Por eso la añadimos a nuestra lista de interés */
     if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_entrada, &ev) == -1) {
         perror("epoll_ctl");
@@ -459,6 +460,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 
     while (1) {
         /* Parar hasta que llegue evento */
+        printf ("epoll_wait: Esperando eventos... \n");
         nfds = epoll_wait(dfsonda, eventos, MAX_EVENTOS, -1);
         if (nfds == -1) {
             perror("epoll_wait");
@@ -478,7 +480,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
                         break;
                     /* Sí; es Cliente */
                     fcntl(rt.des.toma_salida, F_SETFL, O_NONBLOCK);
-                    ev.eventos = EPOLLIN | EPOLLET;
+                    ev.events = EPOLLIN | EPOLLET;
                     ev.data.fd = rt.des.toma_salida;
                     if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_salida, 
                                   &ev) < 0) {
@@ -504,9 +506,9 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     while (1) {
         /* Parar hasta que llegue evento a una o más tomas activas */
         lista_df_entrada = lista_df_activos;
-        printf ("Esperando eventos... \n");
+        printf ("select: Esperando eventos... \n");
         if (select(FD_SETSIZE, &lista_df_entrada, NULL, NULL, NULL) < 0) {
-            perror ("select");
+            perror("select");
             fatal(ext_id, "traepctoma: error esperando eventos E/S");
         }
         /* Atender tomas con eventos de entrada pendientes */
@@ -535,19 +537,20 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     }
 #endif
 #ifdef SIN_SONDEAR_ES
-    while (1) {
-        /* Extraer primera conexión de la cola de conexiones */
-        rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                                    (struct sockaddr*) &cliente,
-                                    &lnt);
-        /* ¿Es cliente? */
-        if (   rt.des.toma_salida < 0 
-            && (EAGAIN == errno || EWOULDBLOCK == errno))
-            continue;
-        /* Sí; es Cliente */
-        /* POR HACER: Función para anuciar cliente */
-        goto atiende_peticion;
+    /* POR HACER: Asegurarse que la toma está bloqueada */
+    //fcntl(rt.des.toma_entrada, F_SETFL, O_NONBLOCK);
+    
+    /* Extraer primera conexión de la cola de conexiones */
+    rt.des.toma_salida = accept(rt.des.toma_entrada, 
+                                (struct sockaddr*) &cliente,
+                                &lnt);
+
+    if (rt.des.toma_salida < 0) {
+        perror("select");
+        fatal(ext_id, "traepctoma: error al extraer conesión");
     }
+
+    /* POR HACER: Función para anuciar cliente */
 #endif
 
 atiende_peticion:
@@ -636,12 +639,6 @@ cierra_toma_salida(FILE *fp, void *opaque)
 
     flujo = (t_datos_conector *) opaque;
     libera_conector(flujo);
-
-    /* Cerrar descriptor de salida (conexión cliente) */
-    if (fsync(rt.des.toma_salida) < 0) {
-        perror("fsync");
-        lintwarn(ext_id, "cierra_toma_salida: error limpiando salida");
-    }
 
     if (shutdown(rt.des.toma_salida, SHUT_RDWR) < 0) {
         perror("shutdown");
