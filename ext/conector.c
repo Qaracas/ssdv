@@ -103,25 +103,25 @@ static int libera; /* Indica memoria liberada */
 
 /* es_dirip -- modifica criterios evitando a getaddrinfo() resolver nombre */
 
-static int
-es_dirip(char *ip, struct addrinfo *criterios)
-{
-    struct sockaddr_in t4;
-    struct in6_addr    t6;
-
-    int rc = inet_pton(AF_INET, ip, &t4.sin_addr);
-    if (rc == 1) {     /* ¿Dirección IPv4 válida? */
-        criterios->ai_family = AF_INET;
-        criterios->ai_flags |= AI_NUMERICHOST;
-    } else {
-        rc = inet_pton(AF_INET6, ip, &t6);
-        if (rc == 1) { /* ¿Dirección IPv6 válida? */
-            criterios->ai_family = AF_INET6;
-            criterios->ai_flags |= AI_NUMERICHOST;
-        }
-    }
-    return rc;
-}
+//static int
+//es_dirip(char *ip, struct addrinfo *criterios)
+//{
+//    struct sockaddr_in t4;
+//    struct in6_addr    t6;
+//
+//    int rc = inet_pton(AF_INET, ip, &t4.sin_addr);
+//    if (rc == 1) {     /* ¿Dirección IPv4 válida? */
+//        criterios->ai_family = AF_INET;
+//        criterios->ai_flags |= AI_NUMERICHOST;
+//    } else {
+//        rc = inet_pton(AF_INET6, ip, &t6);
+//        if (rc == 1) { /* ¿Dirección IPv6 válida? */
+//            criterios->ai_family = AF_INET6;
+//            criterios->ai_flags |= AI_NUMERICHOST;
+//        }
+//    }
+//    return rc;
+//}
 
 static awk_bool_t
 es_nodoip (char *nodo, char *puerto, 
@@ -254,7 +254,7 @@ cuenta_crtrs(const char *txt, char c)
 static awk_bool_t
 es_fichero_especial(const char *nombre, t_ruta *ruta)
 {
-    int c;
+    unsigned int c;
     char *campo[6];
     char fichero_red[256];
 
@@ -321,7 +321,8 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t nombre;
-    struct sockaddr_in servidor;
+
+    (void) unused;
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
@@ -360,14 +361,16 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 
     if (rp == NULL) {
         perror("bind");
-        fatal(ext_id, "creatoma: error creando toma de entrada");
+        fatal(ext_id, "creatoma: error nombrando toma de entrada");
     }
     
     freeaddrinfo(rt.stoma); /* Ya no se necesita */
 
     /* Poner toma en modo escucha */
-    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0)
-        fatal(ext_id, "creatoma: error poniendo toma en escucha");
+    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0) {
+        perror("listen");
+        fatal(ext_id, "creatoma: error creando toma de escucha");
+    }
 
     return make_number(rt.des.toma_entrada, resultado);
 }
@@ -382,6 +385,8 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t nombre;
+
+    (void) unused;
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
@@ -426,6 +431,8 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     struct sockaddr_in cliente;
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
+    (void) unused;
+    
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
         fatal(ext_id, "traepctoma: nº de argumentos incorrecto");
@@ -539,6 +546,16 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 #ifdef SIN_SONDEAR_ES
     /* POR HACER: Asegurarse que la toma está bloqueada */
     //fcntl(rt.des.toma_entrada, F_SETFL, O_NONBLOCK);
+
+     /* Poner toma en modo escucha */
+    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0) {
+        perror("listen");
+        fatal(ext_id, "creatoma: error creando toma de escucha");
+    }   /* Poner toma en modo escucha */
+    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0) {
+        perror("listen");
+        fatal(ext_id, "creatoma: error creando toma de escucha");
+    }
     
     /* Extraer primera conexión de la cola de conexiones */
     rt.des.toma_salida = accept(rt.des.toma_entrada, 
@@ -546,8 +563,8 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
                                 &lnt);
 
     if (rt.des.toma_salida < 0) {
-        perror("select");
-        fatal(ext_id, "traepctoma: error al extraer conesión");
+        perror("accept");
+        fatal(ext_id, "traepctoma: error al extraer conexión");
     }
 
     /* POR HACER: Función para anuciar cliente */
@@ -566,14 +583,14 @@ atiende_peticion:
 /* Los datos del puntero oculto */
 
 typedef struct datos_proc_bidireccional {
-    char   *tope;  /* Tope de datos                              */
-    char   *sdrt;  /* Separador de registro. Variable RS de gawk */
-    size_t tsr;    /* Tamaño cadena separador de registro        */
-    size_t max;    /* Tamaño máximo asignado al tope             */
-    size_t lgtope; /* Tamaño actual del tope                     */
-    size_t lgtreg; /* Tamaño actual del registro                 */
-    int    ptrreg; /* Puntero inicio registro en tope (actual)   */
-    int    ptareg; /* Puntero inicio registro en tope (anterior) */
+    char    *tope;  /* Tope de datos                              */
+    char    *sdrt;  /* Separador de registro. Variable RS de gawk */
+    size_t  tsr;    /* Tamaño cadena separador de registro        */
+    size_t  max;    /* Tamaño máximo asignado al tope             */
+    ssize_t lgtope; /* Tamaño actual del tope                     */
+    size_t  lgtreg; /* Tamaño actual del registro                 */
+    int     ptrreg; /* Puntero inicio registro en tope (actual)   */
+    int     ptareg; /* Puntero inicio registro en tope (anterior) */
 } t_datos_conector;
 
 /* libera_conector -- Libera datos */
@@ -638,13 +655,34 @@ cierra_toma_salida(FILE *fp, void *opaque)
     (void) fp;
 
     flujo = (t_datos_conector *) opaque;
-    libera_conector(flujo);
 
+    /* Leemos lo que quede antes de cerrar la toma */
+    fcntl(rt.des.toma_salida, F_SETFL, O_NONBLOCK);
+    while (1) {
+        flujo->lgtope = recv(rt.des.toma_salida, 
+                             flujo->tope + flujo->ptrreg,
+                             flujo->max - flujo->ptrreg, 0);
+        if ((   flujo->lgtope < 0
+             && (EAGAIN == errno || EWOULDBLOCK == errno))
+            || flujo->lgtope == 0)
+            break;
+    }
+
+    libera_conector(flujo);
+    
     if (shutdown(rt.des.toma_salida, SHUT_RDWR) < 0) {
         perror("shutdown");
         lintwarn(ext_id, "cierra_toma_salida: error apagando salida");
     }
 
+    /* Evita que la toma quede en espera (TIME_WAIT) al cerrarse */
+    struct linger so_linger;
+    so_linger.l_onoff  = 1;
+    so_linger.l_linger = 0;
+    setsockopt(rt.des.toma_salida, SOL_SOCKET, SO_LINGER,
+               &so_linger, sizeof(so_linger));
+
+    /* La toma no queda en espera al cerrar. Ver SO_LINGER */
     if(close(rt.des.toma_salida) < 0) {
         perror("close");
         lintwarn(ext_id, "cierra_toma_salida: error cerrando salida");
@@ -689,7 +727,9 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 {
     t_datos_conector *flujo;
 
-    (void) errcode; /* silenciar alertas */
+    (void) errcode;
+    (void) unused;
+    
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
         return EOF;
 
@@ -705,11 +745,9 @@ lee_mas:
             return EOF;
 
         if (flujo->lgtope < 0) {
-            update_ERRNO_int(ENOENT);
-            update_ERRNO_string("conector: error de E/S");
-            lintwarn(ext_id,
-                     "trae_regsitro: error recibiendo datos de la toma");
-            return EOF;
+            perror("recv");
+            fatal(ext_id,
+                  "trae_regsitro: error recibiendo datos de la toma");
         }
 
         flujo->ptareg = flujo->ptrreg;
@@ -754,15 +792,11 @@ static size_t
 conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
                  void *opaque)
 {
-    t_datos_conector *flujo;
-
-    if (opaque == NULL)
-        return EOF;
-
-    //(void) fp;
-    flujo = (t_datos_conector *) opaque;
+    (void) fp;
+    (void) opaque;
 
     if (send(rt.des.toma_salida, buf, (size * count), 0) < 0) {
+        perror("send");
         lintwarn(ext_id, "conector_escribe: registro demasiado extenso");
         return EOF;
     }
@@ -788,8 +822,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
 {
     awk_value_t valor_tpm, valor_rs;
     t_datos_conector *flujo;
-
-    (void) name; /* silenciar avisos */
+    
     if (   inbuf == NULL || outbuf == NULL
         || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) /* ToPe Máximo */
         || valor_tpm.num_value <= 0
@@ -797,7 +830,9 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
        )
         return awk_false;
 
-    if (rt.des.toma_salida < 0)
+    if (   name == NULL
+        || strcmp(name, rt.nombre) != 0 /* Toma registrada 'creatoma' */
+        || rt.des.toma_salida < 0)
       return awk_false;
 
     /* Memoriza estructura opaca */
@@ -819,7 +854,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     libera = 1;
     
     /* Entrada */
-    inbuf->fd = rt.des.toma_entrada;
+    inbuf->fd = rt.des.toma_salida + 1;
     inbuf->opaque = flujo;
     inbuf->get_record = conector_trae_registro;
     inbuf->close_func = cierra_toma_entrada;
