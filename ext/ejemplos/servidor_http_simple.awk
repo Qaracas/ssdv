@@ -34,7 +34,6 @@
 # not, see <https://www.gnu.org/licenses/>.
 
 @load "conector";
-@load "fork";
 
 BEGIN {
     RS = ORS = "\r\n";
@@ -42,30 +41,30 @@ BEGIN {
 
     canalTcpIP="/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
-
+ 
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Padre: espero conexión...";
+        print "[" PROCINFO["pid"] "]", "Espero conexión...";
         traepctoma(canalTcpIP);
-        if ((pid = fork()) == 0) {
-            /* Hijo */
-            cierratoma(canalTcpIP);
-            break;
-        } else {
-            /* Padre */
-            close(canalTcpIP);
+
+        /* Procesar petición */
+        salir = 0;
+        while ((canalTcpIP |& getline) > 0) {
+            print;
+            if ($1 == "GET" && $2 == "/salir")
+                salir = 1;
+            if (length($0) == 0)
+                break;
         }
-    }
 
-    print "[" PROCINFO["pid"] "]", "Hijo: la atiendo y salgo.";
-    while ((canalTcpIP |& getline) > 0) {
-        print;
-        if (length($0) == 0)
+        /* Mandar respuesta */
+        print "HTTP/1.1 200 Vale" |& canalTcpIP;
+        print "Connection: close" |& canalTcpIP;
+        close(canalTcpIP);
+
+        if (salir)
             break;
     }
 
-    print "HTTP/1.1 200 Vale" |& canalTcpIP;
-    print "Connection: close" |& canalTcpIP;
-    close(canalTcpIP);
-
+    cierratoma(canalTcpIP);   
     exit 0;
 }
