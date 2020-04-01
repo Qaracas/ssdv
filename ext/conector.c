@@ -66,9 +66,6 @@ static awk_bool_t (*init_func)(void) = inicia_conector;
 int plugin_is_GPL_compatible;
 
 #define API_AWK_V2
-//#define API_EPOLL_LINUX
-//#define API_SELECT_LINUX
-#define SIN_SONDEAR_ES
 
 #define _GNU_SOURCE
 
@@ -203,13 +200,16 @@ fin:
 static awk_bool_t
 es_numero(char *texto)
 {
-    int j = strlen(texto);
-    while(j--) {
-        if(isdigit(texto[j]))
-            continue;
-        return awk_false;
+    if (texto != NULL) {
+        int j = strlen(texto);
+        while(j--) {
+            if(isdigit((int)texto[j]))
+                continue;
+            return awk_false;
+        }
+        return awk_true;
     }
-    return awk_true;
+    return awk_false;
 }
 
 static int
@@ -256,11 +256,14 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
 {
     unsigned int c;
     char *campo[6];
-    char fichero_red[256];
+    char *fichero_red;
 
-    rt.local = awk_false;
+    ruta->local = awk_false;
 
-    strcpy(fichero_red, nombre);
+    emalloc(fichero_red, char *,
+            strlen((const char *) nombre) + 1, 
+            "es_fichero_especial");
+    strcpy(fichero_red, (const char *) nombre);
 
     if (   cuenta_crtrs(fichero_red, '/') != 6
         || caracter_ini(fichero_red) == -1
@@ -274,6 +277,8 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
     for (c = 0; (c < LTD(campo) - 1) && campo[c] != NULL;)
         campo[++c] = strtok(NULL, "/");
 
+    gawk_free(fichero_red);
+
     if (   c != (LTD(campo) - 1)
         || strcmp(campo[0], "ired") != 0
         || strcmp(campo[1], "tcp") != 0
@@ -286,8 +291,8 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[3], "0") == 0
         && strcmp(campo[4], "0") != 0
         && atoi(campo[5]) > 0
-        && es_nodoip(campo[4], campo[5], &rt.stoma, &rt.local)
-        && !rt.local) 
+        && es_nodoip(campo[4], campo[5], &ruta->stoma, &ruta->local)
+        && !ruta->local) 
     { /* Cliente */
         // return awk_true;
         return awk_false; /* De momento no */
@@ -296,8 +301,8 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[5], "0") == 0
         && strcmp(campo[2], "0") != 0
         && atoi(campo[3]) > 0
-        && es_nodoip(campo[2], campo[3], &rt.stoma, &rt.local)
-        && rt.local) 
+        && es_nodoip(campo[2], campo[3], &ruta->stoma, &ruta->local)
+        && ruta->local) 
     { /* Servidor */
         return awk_true;
     } else
@@ -432,7 +437,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
     (void) unused;
-    
+
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
         fatal(ext_id, "traepctoma: nº de argumentos incorrecto");
@@ -443,134 +448,54 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0)
         fatal(ext_id, "traepctoma: toma escucha incorrecta");
 
-#ifdef API_EPOLL_LINUX
-    int dfsonda; /* descriptor fichero de la sonda E/S */
-    int nfds, n;
-    struct epoll_event ev, eventos[MAX_EVENTOS];
+    fd_set lst_df_sondear_lect, lst_df_sondear_escr;
 
-    /* Crear sonda para monitorizar eventos de E/S */
-    dfsonda = epoll_create1(0);
-    if (dfsonda == -1) {
-        perror("epoll_create1");
-        fatal(ext_id, "traepctoma: error sondeando E/S");
-    }
-
-    /* Nos interesa sondear la 'toma_entrada' */
-    ev.data.fd = rt.des.toma_entrada;
-    /* Y ver si está preparada para leer datos */
-    ev.events = EPOLLIN;
-    /* Por eso la añadimos a nuestra lista de interés */
-    if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_entrada, &ev) == -1) {
-        perror("epoll_ctl");
-        fatal(ext_id, "traepctoma: error lista sondeo entrada");
-    }
-
-    while (1) {
-        /* Parar hasta que llegue evento */
-        printf ("epoll_wait: Esperando eventos... \n");
-        nfds = epoll_wait(dfsonda, eventos, MAX_EVENTOS, -1);
-        if (nfds == -1) {
-            perror("epoll_wait");
-            fatal(ext_id, "traepctoma: error esperando eventos E/S");
-        }
-        /* Atender tomas con eventos de entrada pendientes */
-        for (n = 0; n < nfds; ++n) {
-            if (eventos[n].data.fd == rt.des.toma_entrada) {
-                while (1) {
-                    /* Extraer primera conexión de la cola de conexiones */
-                    rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                                                (struct sockaddr*) &cliente,
-                                                &lnt);
-                    /* ¿Es cliente? */
-                    if (   rt.des.toma_salida < 0 
-                        && (EAGAIN == errno || EWOULDBLOCK == errno))
-                        break;
-                    /* Sí; es Cliente */
-                    fcntl(rt.des.toma_salida, F_SETFL, O_NONBLOCK);
-                    ev.events = EPOLLIN | EPOLLET;
-                    ev.data.fd = rt.des.toma_salida;
-                    if (epoll_ctl(dfsonda, EPOLL_CTL_ADD, rt.des.toma_salida, 
-                                  &ev) < 0) {
-                        perror("epoll_ctl");
-                        fatal(ext_id, "traepctoma: error lista sondeo salida");
-                    }
-                    /* POR HACER: Función para anuciar cliente */
-                }
-            } else {
-                goto atiende_peticion;
-            }
-        }
-    }
-#endif
-#ifdef API_SELECT_LINUX
-    int i;
-    fd_set lista_df_activos, lista_df_entrada;
-
-    /* Inizilizar colección de tomas activas */
-    FD_ZERO(&lista_df_activos);
-    FD_SET(rt.des.toma_entrada, &lista_df_activos);
+    /* Borrar colección de tomas E/S a sondear */
+    FD_ZERO(&lst_df_sondear_lect);
+    FD_ZERO(&lst_df_sondear_escr);
+    /* Sondear toma de escucha */
+    FD_SET(rt.des.toma_entrada, &lst_df_sondear_lect);
 
     while (1) {
         /* Parar hasta que llegue evento a una o más tomas activas */
-        lista_df_entrada = lista_df_activos;
-        printf ("select: Esperando eventos... \n");
-        if (select(FD_SETSIZE, &lista_df_entrada, NULL, NULL, NULL) < 0) {
+        if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr, 
+                   NULL, NULL) < 0) {
             perror("select");
             fatal(ext_id, "traepctoma: error esperando eventos E/S");
         }
         /* Atender tomas con eventos de entrada pendientes */
-        for (i = 0; i < FD_SETSIZE; ++i) {
-            if (FD_ISSET(i, &lista_df_entrada)) {
-                if (i == rt.des.toma_entrada) {
-                    while (1) {
-                        /* Extraer primera conexión de la cola de conexiones */
-                        rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                                                    (struct sockaddr*) &cliente,
-                                                    &lnt);
-                        /* ¿Es cliente? */
-                        if (   rt.des.toma_salida < 0 
-                            && (EAGAIN == errno || EWOULDBLOCK == errno))
-                            break;
-                        /* Sí; es Cliente */
-                        FD_SET(rt.des.toma_salida, &lista_df_activos);
-                        /* POR HACER: Función para anuciar cliente */
-                    }
-                } else {
-                    FD_CLR(i, &lista_df_activos);
-                    goto atiende_peticion;
-                }
+        if (FD_ISSET(rt.des.toma_entrada, &lst_df_sondear_lect)) {
+            /* Extraer primera conexión de la cola de conexiones */
+            rt.des.toma_salida = accept(rt.des.toma_entrada,
+                                        (struct sockaddr*) &cliente,
+                                        &lnt);
+            /* ¿Es cliente? */
+            if (rt.des.toma_salida < 0) {
+                perror("accept");
+                fatal(ext_id, "traepctoma: error al extraer conexión");
             }
+            
+            /* Sí; es cliente */
+
+            /* POR HACER: Función para anunciar cliente */
+            //printf ("Conexión desde %s, puerto %d.\n",
+            //        inet_ntoa (cliente.sin_addr),
+            //        ntohs (cliente.sin_port));
+
+sondea_salida:
+            FD_ZERO(&lst_df_sondear_lect);
+            FD_ZERO(&lst_df_sondear_escr);
+            FD_SET(rt.des.toma_salida, &lst_df_sondear_lect);
+            FD_SET(rt.des.toma_salida, &lst_df_sondear_escr);
+        } else {
+            if (   FD_ISSET(rt.des.toma_salida, &lst_df_sondear_lect)
+                && FD_ISSET(rt.des.toma_salida, &lst_df_sondear_escr))
+                break;
+            else
+                goto sondea_salida;
         }
     }
-#endif
-#ifdef SIN_SONDEAR_ES
-    /* POR HACER: Asegurarse que la toma está bloqueada */
-    //fcntl(rt.des.toma_entrada, F_SETFL, O_NONBLOCK);
 
-     /* Poner toma en modo escucha */
-    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0) {
-        perror("listen");
-        fatal(ext_id, "creatoma: error creando toma de escucha");
-    }   /* Poner toma en modo escucha */
-    if (listen(rt.des.toma_entrada, MAX_CNX_PENDIENTES) < 0) {
-        perror("listen");
-        fatal(ext_id, "creatoma: error creando toma de escucha");
-    }
-    
-    /* Extraer primera conexión de la cola de conexiones */
-    rt.des.toma_salida = accept(rt.des.toma_entrada, 
-                                (struct sockaddr*) &cliente,
-                                &lnt);
-
-    if (rt.des.toma_salida < 0) {
-        perror("accept");
-        fatal(ext_id, "traepctoma: error al extraer conexión");
-    }
-
-    /* POR HACER: Función para anuciar cliente */
-#endif
-
-atiende_peticion:
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. */
     return make_number(rt.des.toma_salida, resultado);
@@ -615,7 +540,7 @@ static int
 long_registro(char *ini, char *fin)
 {
     int c = 0;
-    char *i = ini;    
+    char *i = ini;
 
     while (i++ != fin)
         c++;
@@ -657,11 +582,10 @@ cierra_toma_salida(FILE *fp, void *opaque)
     flujo = (t_datos_conector *) opaque;
 
     /* Leemos lo que quede antes de cerrar la toma */
-    fcntl(rt.des.toma_salida, F_SETFL, O_NONBLOCK);
     while (1) {
-        flujo->lgtope = recv(rt.des.toma_salida, 
+        flujo->lgtope = recv(rt.des.toma_salida,
                              flujo->tope + flujo->ptrreg,
-                             flujo->max - flujo->ptrreg, 0);
+                             flujo->max - flujo->ptrreg, MSG_DONTWAIT);
         if ((   flujo->lgtope < 0
              && (EAGAIN == errno || EWOULDBLOCK == errno))
             || flujo->lgtope == 0)
@@ -729,7 +653,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     (void) errcode;
     (void) unused;
-    
+
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
         return EOF;
 
@@ -741,14 +665,21 @@ lee_mas:
                              flujo->tope + flujo->ptrreg,
                              flujo->max - flujo->ptrreg, 0);
 
-        if (flujo->lgtope == 0)
-            return EOF;
+        if (flujo->lgtope <= 0) {
+            if (flujo->ptrreg > 0) {
+                bzero(flujo->tope + flujo->ptrreg, 
+                      flujo->max - flujo->ptrreg);
 
-        if (flujo->lgtope < 0) {
-            perror("recv");
-            fatal(ext_id,
-                  "trae_regsitro: error recibiendo datos de la toma");
-        }
+                *out = flujo->tope;
+                return flujo->ptrreg;
+            }else
+                return EOF;
+        } 
+
+        /* Limpiar tope sobrante */
+        if (((size_t)flujo->lgtope + flujo->ptrreg) < flujo->max)
+            bzero(flujo->tope + ((size_t)flujo->lgtope + flujo->ptrreg), 
+                  flujo->max - ((size_t)flujo->lgtope + flujo->ptrreg));
 
         flujo->ptareg = flujo->ptrreg;
         flujo->ptrreg = 0;
@@ -757,23 +688,17 @@ lee_mas:
         flujo->ptrreg += flujo->lgtreg + (int) flujo->tsr;
     }
 
-    /* Apuntar a los datos que se utilizarán para RT */
+    /* Apuntar al siguiente registro (variable RT) */
     *rt_start = strstr((const char*) flujo->tope + flujo->ptrreg,
                        (const char*) flujo->sdrt);
     *rt_len = flujo->tsr;
 
     if (*rt_start == NULL) {
-        if (flujo->ptrreg == 0) {
-            update_ERRNO_int(EOVERFLOW);
-            update_ERRNO_string("conector: tope desbordado");
-            lintwarn(ext_id, "trae_registro: registro demasiado extenso");
-            return EOF;
-        }
-
-        /* Copia lo que nos queda por leer a 'rsto' */
+        *rt_len = 0;
+        
+        /* Copia lo que nos queda por leer al inicio */
         memcpy(flujo->tope, (const void *) (flujo->tope + flujo->ptrreg),
                (flujo->lgtope + flujo->ptareg) - flujo->ptrreg);
-
         flujo->ptrreg = (flujo->lgtope + flujo->ptareg) - flujo->ptrreg;
 
         goto lee_mas;
@@ -782,7 +707,6 @@ lee_mas:
     flujo->lgtreg = long_registro(flujo->tope + flujo->ptrreg, *rt_start);
 
     *out = flujo->tope + flujo->ptrreg;
-
     return flujo->lgtreg;
 }
 
@@ -811,6 +735,7 @@ conector_puede_aceptar_fichero(const char *name)
 {
     return (   name != NULL
             && strcmp(name, rt.nombre) == 0 /* Toma registrada 'creatoma' */
+            && rt.des.toma_salida > 0       /* De momento */
             && rt.local);                   /* De momento sólo local */
 }
 
@@ -822,18 +747,15 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
 {
     awk_value_t valor_tpm, valor_rs;
     t_datos_conector *flujo;
-    
+
+    (void) name;
+
     if (   inbuf == NULL || outbuf == NULL
         || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) /* ToPe Máximo */
         || valor_tpm.num_value <= 0
         || !(sym_lookup("RS",  AWK_STRING, &valor_rs))  /* Valor de RS */
        )
         return awk_false;
-
-    if (   name == NULL
-        || strcmp(name, rt.nombre) != 0 /* Toma registrada 'creatoma' */
-        || rt.des.toma_salida < 0)
-      return awk_false;
 
     /* Memoriza estructura opaca */
     emalloc(flujo, t_datos_conector *,
@@ -851,8 +773,9 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     flujo->max = (size_t) valor_tpm.num_value;
     emalloc(flujo->tope, char *,
             flujo->max, "conector_tomar_control_de");
+    bzero(flujo->tope, flujo->max);
     libera = 1;
-    
+
     /* Entrada */
     inbuf->fd = rt.des.toma_salida + 1;
     inbuf->opaque = flujo;
