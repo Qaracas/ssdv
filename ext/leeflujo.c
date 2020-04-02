@@ -61,7 +61,7 @@ typedef struct fichero_abierto {
     size_t max;     /* Por defecto. Si no, vale TPM */
 } t_fichero_abierto;
 
-awk_bool_t
+static void
 crea_actualiza_var_global_num(double num, char *var)
 {
     awk_value_t valor;
@@ -81,12 +81,8 @@ crea_actualiza_var_global_num(double num, char *var)
 
     assert(&valor != NULL);
 
-    if (!sym_update(var, &valor)) {
-        warning(ext_id, "lee_flujo: error creando símbolo %s", var);
-        return awk_false;
-    }
-
-    return awk_true;
+    if (!sym_update(var, &valor))
+        fatal(ext_id, "lee_flujo: error creando símbolo %s", var);
 }
 
 /* trae_registro -- Lee cada vez hasta MAX octetos */
@@ -104,6 +100,9 @@ trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     int ltd = 0;
     t_fichero_abierto *fichero;
 
+    (void) errcode;
+    (void) unused;
+
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
         return EOF;
 
@@ -112,16 +111,20 @@ trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     if (feof(fichero->flujo))
         return EOF;
 
+    clearerr(fichero->flujo);
     ltd = fread(fichero->tope, (size_t)1, fichero->max, fichero->flujo);
 
-    *(fichero->tope + ltd + 1) = '\0';
-    *out = fichero->tope;
+    if (ferror(fichero->flujo))
+        fatal(ext_id, "lee_flujo: error leyendo flujo");
 
     /* Exportar número de octetos leídos a la tabla de símbolos */
     crea_actualiza_var_global_num((double)ltd, "LTD");
 
+    *out = fichero->tope;
+
+    /* Variable RT no tiene sentido aquí */
     *rt_start = NULL;
-    *rt_len = 0;    /* Pon RT a "" */
+    *rt_len = 0;
     return ltd;
 }
 
@@ -138,10 +141,12 @@ cerrar_fichero(awk_input_buf_t *iobuf)
     fichero = (t_fichero_abierto *) iobuf->opaque;
 
     fclose(fichero->flujo);
+
+    gawk_free(fichero->flujo);
     gawk_free(fichero->tope);
     gawk_free(fichero);
 
-    iobuf->fd = -1;
+    iobuf->fd = INVALID_HANDLE;
 }
 
 /* lee_puede_aceptar_fichero -- Retorna "true" si procesamos archivo */
@@ -149,14 +154,8 @@ cerrar_fichero(awk_input_buf_t *iobuf)
 static awk_bool_t
 lee_puede_aceptar_fichero(const awk_input_buf_t *iobuf)
 {
-    awk_value_t valor_tpm;
-
-    if (   iobuf == NULL
-        || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm))
-        || valor_tpm.num_value <= 0)
-        return awk_false;
-
-    return (   iobuf->fd != INVALID_HANDLE
+    return (   iobuf != NULL
+            && iobuf->fd != INVALID_HANDLE
             && (   S_ISREG(iobuf->sbuf.st_mode)
                 || S_ISBLK(iobuf->sbuf.st_mode)
                 || S_ISLNK(iobuf->sbuf.st_mode)));
@@ -183,12 +182,13 @@ lee_tomar_control_de(awk_input_buf_t *iobuf)
         warning(ext_id, "lee_tomar_control_de: error abriendo fichero");
         return awk_false;
     }
+
     emalloc(fichero, t_fichero_abierto *,
             sizeof(t_fichero_abierto), "lee_tomar_control_de");
     fichero->flujo = flujo;
     fichero->max = (size_t)valor_tpm.num_value;
     emalloc(fichero->tope, char *,
-            (fichero->max) + 1, "lee_tomar_control_de");
+            (fichero->max), "lee_tomar_control_de");
 
     iobuf->opaque = fichero;
     iobuf->get_record = trae_registro;
