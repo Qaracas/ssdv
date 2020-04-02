@@ -32,40 +32,17 @@
 # License along with this software; see the file LICENSE. If
 # not, see <https://www.gnu.org/licenses/>.
 
-@load "conector";
-@load "fork";
+@load "leeflujo";
 
 BEGIN {
-    RS = ORS = "\r\n";
-    TPM = 32;
+    # Leer flujo de TMP en TMP octetos
+    TPM   = ARGV[2];
+    # Establece flujo con fichero
+    flujo = ARGV[1];
 
-    canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
-    creatoma(canalTcpIP);
+    while ((getline < flujo) > 0)
+        print $0, LTD;
 
-    while (1) {
-        print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
-        traepctoma(canalTcpIP);
-        if ((pid = fork()) == 0) {
-            /* Hijo */
-            cierratoma(canalTcpIP);
-            break;
-        } else {
-            /* Padre */
-            waitpid(pid);
-            close(canalTcpIP);
-        }
-    }
-
-    print "[" PROCINFO["pid"] "]", "Hijo: la atiendo y salgo.";
-    while ((canalTcpIP |& getline) > 0) {
-        print;
-        if (length($0) == 0)
-            break;
-    }
-
-    print "HTTP/1.1 200 Vale" |& canalTcpIP;
-    print "Connection: close" |& canalTcpIP;
-    close(canalTcpIP);
-
+    close(flujo);
     exit 0;
 }

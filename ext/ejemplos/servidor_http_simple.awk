@@ -1,4 +1,3 @@
-
 #!/usr/bin/gawk -E
 
 # Autor: Ulpiano Tur de Vargas <ulpiano.tur.devargas@gmail.com>
@@ -37,13 +36,13 @@
 
 BEGIN {
     RS = ORS = "\r\n";
-    TPM = 35;
+    TPM = 32;
 
-    canalTcpIP="/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
+    canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
- 
+
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Espero conexión...";
+        print "[" PROCINFO["pid"] "]", "Espero petición...";
         traepctoma(canalTcpIP);
 
         /* Procesar petición */

@@ -98,7 +98,7 @@ static t_ruta rt;  /* Ruta de conexión */
 
 static int libera; /* Indica memoria liberada */
 
-/* es_dirip -- modifica criterios evitando a getaddrinfo() resolver nombre */
+/* es_dirip -- Modifica criterios evitando a getaddrinfo() resolver nombre */
 
 //static int
 //es_dirip(char *ip, struct addrinfo *criterios)
@@ -171,7 +171,7 @@ es_nodoip (char *nodo, char *puerto,
                 break;
             }
             if (i->ifa_addr->sa_family == AF_INET) {
-                if (   ntohl(((struct in_addr*)local)->s_addr) 
+                if (   ntohl(((struct in_addr*)local)->s_addr)
                     == ntohl(((struct in_addr*)resul)->s_addr))
                 {
                     *es_local = awk_true;
@@ -292,7 +292,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[4], "0") != 0
         && atoi(campo[5]) > 0
         && es_nodoip(campo[4], campo[5], &ruta->stoma, &ruta->local)
-        && !ruta->local) 
+        && !ruta->local)
     { /* Cliente */
         // return awk_true;
         return awk_false; /* De momento no */
@@ -302,7 +302,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && strcmp(campo[2], "0") != 0
         && atoi(campo[3]) > 0
         && es_nodoip(campo[2], campo[3], &ruta->stoma, &ruta->local)
-        && ruta->local) 
+        && ruta->local)
     { /* Servidor */
         return awk_true;
     } else
@@ -341,7 +341,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
         && rt.local)
     {
         emalloc(rt.nombre, char *,
-                strlen((const char *) nombre.str_value.str) + 1, 
+                strlen((const char *) nombre.str_value.str) + 1,
                 "haz_crea_toma");
         strcpy(rt.nombre, (const char *) nombre.str_value.str);
     } else {
@@ -458,7 +458,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 
     while (1) {
         /* Parar hasta que llegue evento a una o más tomas activas */
-        if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr, 
+        if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
                    NULL, NULL) < 0) {
             perror("select");
             fatal(ext_id, "traepctoma: error esperando eventos E/S");
@@ -582,15 +582,15 @@ cierra_toma_salida(FILE *fp, void *opaque)
     flujo = (t_datos_conector *) opaque;
 
     /* Leemos lo que quede antes de cerrar la toma */
-    while (1) {
-        flujo->lgtope = recv(rt.des.toma_salida,
-                             flujo->tope + flujo->ptrreg,
-                             flujo->max - flujo->ptrreg, MSG_DONTWAIT);
-        if ((   flujo->lgtope < 0
-             && (EAGAIN == errno || EWOULDBLOCK == errno))
-            || flujo->lgtope == 0)
-            break;
-    }
+//    while (1) {
+//        flujo->lgtope = recv(rt.des.toma_salida,
+//                             flujo->tope + flujo->ptrreg,
+//                             flujo->max - flujo->ptrreg, MSG_DONTWAIT);
+//        if ((   flujo->lgtope < 0
+//             && (EAGAIN == errno || EWOULDBLOCK == errno))
+//            || flujo->lgtope == 0)
+//            break;
+//    }
 
     libera_conector(flujo);
     
@@ -637,7 +637,7 @@ maneja_error(FILE *fp, void *opaque)
     return 0;
 }
 
-/* conector_trae_registro -- lee un registro cada vez */
+/* conector_trae_registro -- Lee un registro cada vez */
 
 static int
 #ifdef API_AWK_V2
@@ -661,13 +661,13 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     if (flujo->lgtope == 0) {
 lee_mas:
-        flujo->lgtope = recv(rt.des.toma_salida, 
+        flujo->lgtope = recv(rt.des.toma_salida,
                              flujo->tope + flujo->ptrreg,
                              flujo->max - flujo->ptrreg, 0);
 
         if (flujo->lgtope <= 0) {
             if (flujo->ptrreg > 0) {
-                bzero(flujo->tope + flujo->ptrreg, 
+                bzero(flujo->tope + flujo->ptrreg,
                       flujo->max - flujo->ptrreg);
 
                 *out = flujo->tope;
@@ -678,7 +678,7 @@ lee_mas:
 
         /* Limpiar tope sobrante */
         if (((size_t)flujo->lgtope + flujo->ptrreg) < flujo->max)
-            bzero(flujo->tope + ((size_t)flujo->lgtope + flujo->ptrreg), 
+            bzero(flujo->tope + ((size_t)flujo->lgtope + flujo->ptrreg),
                   flujo->max - ((size_t)flujo->lgtope + flujo->ptrreg));
 
         flujo->ptareg = flujo->ptrreg;
@@ -739,7 +739,7 @@ conector_puede_aceptar_fichero(const char *name)
             && rt.local);                   /* De momento sólo local */
 }
 
-/* conector_tomar_control_de -- prepara procesador bidireccional */
+/* conector_tomar_control_de -- Prepara procesador bidireccional */
 
 static awk_bool_t
 conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
