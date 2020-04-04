@@ -142,7 +142,6 @@ cerrar_fichero(awk_input_buf_t *iobuf)
 
     fclose(fichero->flujo);
 
-    gawk_free(fichero->flujo);
     gawk_free(fichero->tope);
     gawk_free(fichero);
 
