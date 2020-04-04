@@ -45,7 +45,7 @@ BEGIN {
         print "[" PROCINFO["pid"] "]", "Espero petición...";
         traepctoma(canalTcpIP);
 
-        /* Procesar petición */
+        # Procesar petición
         salir = 0;
         while ((canalTcpIP |& getline) > 0) {
             print;
@@ -55,7 +55,7 @@ BEGIN {
                 break;
         }
 
-        /* Mandar respuesta */
+        # Mandar respuesta
         print "HTTP/1.1 200 Vale" |& canalTcpIP;
         print "Connection: close" |& canalTcpIP;
         close(canalTcpIP);

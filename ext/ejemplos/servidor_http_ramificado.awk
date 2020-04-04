@@ -46,13 +46,13 @@ BEGIN {
         print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
         traepctoma(canalTcpIP);
         if ((pid = fork()) == 0) {
-            /* Hijo */
-            cierratoma(canalTcpIP);
+            # Hijo
+            #cierratoma(canalTcpIP); # Ojo! Con fork el cierre afecta a ambos
             break;
         } else {
-            /* Padre */
+            # Padre
             waitpid(pid);
-            close(canalTcpIP);
+            #close(canalTcpIP); # Ojo! Con fork el cierre afecta a ambos
         }
     }
 
