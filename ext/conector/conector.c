@@ -271,13 +271,11 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         || caracter_ini(fichero_red) != '/'
         || caracter_fin(fichero_red) == '/'
        )
-        return awk_false;
+        goto no_es;
 
     campo[0] = strtok(fichero_red, "/");
     for (c = 0; (c < LTD(campo) - 1) && campo[c] != NULL;)
         campo[++c] = strtok(NULL, "/");
-
-    gawk_free(fichero_red);
 
     if (   c != (LTD(campo) - 1)
         || strcmp(campo[0], "ired") != 0
@@ -285,7 +283,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         || !es_numero(campo[3])
         || !es_numero(campo[5])
        )
-        return awk_false;
+        goto no_es;
 
     if (   strcmp(campo[2], "0") == 0
         && strcmp(campo[3], "0") == 0
@@ -295,7 +293,7 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && !ruta->local)
     { /* Cliente */
         // return awk_true;
-        return awk_false; /* De momento no */
+        goto no_es; /* De momento no */
     } else if 
        (   strcmp(campo[4], "0") == 0
         && strcmp(campo[5], "0") == 0
@@ -304,11 +302,14 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
         && es_nodoip(campo[2], campo[3], &ruta->stoma, &ruta->local)
         && ruta->local)
     { /* Servidor */
-        return awk_true;
-    } else
-        return awk_false;
-
+        goto si_es;
+    }
+no_es:
+    gawk_free(fichero_red);
     return awk_false;
+si_es:
+    gawk_free(fichero_red);
+    return awk_true;
 }
 
 
@@ -419,6 +420,7 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
         lintwarn(ext_id, "cierratoma: error cerrando toma");
     }
 
+    rt.des.toma_entrada = INVALID_HANDLE;
     return make_number(0, resultado);
 }
 
@@ -561,7 +563,7 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     flujo = (t_datos_conector *) iobuf->opaque;
     libera_conector(flujo);
 
-    /* haz_cierra_toma() hace esto (conexión servicor) */
+    /* haz_cierra_toma() hace esto (conexión servidor) */
 
     iobuf->fd = INVALID_HANDLE;
 }
@@ -612,6 +614,7 @@ cierra_toma_salida(FILE *fp, void *opaque)
         lintwarn(ext_id, "cierra_toma_salida: error cerrando salida");
     }
 
+    rt.des.toma_salida = INVALID_HANDLE;
     return 0;
 }
 
