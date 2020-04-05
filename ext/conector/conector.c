@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <netdb.h>
 #include <ifaddrs.h>
 
@@ -56,15 +57,6 @@
 
 #include "gawkapi.h"
 
-static const gawk_api_t *api; /* Conveniencia para usar macros */
-static awk_ext_id_t ext_id;
-static const char *ext_version = "extensión conector: versión 1.0";
-
-static awk_bool_t inicia_conector(void);
-static awk_bool_t (*init_func)(void) = inicia_conector;
-
-int plugin_is_GPL_compatible;
-
 #define API_AWK_V2
 
 #define _GNU_SOURCE
@@ -73,12 +65,14 @@ int plugin_is_GPL_compatible;
 #define MAX_EVENTOS        10
 #define LTD(x) (sizeof(x) / sizeof((x)[0]))
 
-#ifdef API_EPOLL_LINUX
-#include <sys/epoll.h>
-#else
-#include <sys/select.h>
-#endif
+static const gawk_api_t *api; /* Conveniencia para usar macros */
+static awk_ext_id_t ext_id;
+static const char *ext_version = "extensión conector: versión 1.0";
 
+static awk_bool_t inicia_conector(void);
+static awk_bool_t (*init_func)(void) = inicia_conector;
+
+int plugin_is_GPL_compatible;
 
 typedef struct descriptores_es {
     int toma_entrada; /* Descriptor servidor en modo escucha    */
@@ -328,7 +322,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 {
     awk_value_t nombre;
 
+#ifdef API_AWK_V2
     (void) unused;
+#endif
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
@@ -392,7 +388,9 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
 {
     awk_value_t nombre;
 
+#ifdef API_AWK_V2
     (void) unused;
+#endif
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
@@ -438,7 +436,9 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     struct sockaddr_in cliente;
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
+#ifdef API_AWK_V2
     (void) unused;
+#endif
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
@@ -655,7 +655,10 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     t_datos_conector *flujo;
 
     (void) errcode;
+
+#ifdef API_AWK_V2
     (void) unused;
+#endif
 
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
         return EOF;
