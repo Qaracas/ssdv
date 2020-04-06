@@ -315,7 +315,7 @@ si_es:
 
 static awk_value_t *
 #ifdef API_AWK_V2
-haz_crea_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
+haz_crea_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *desusado)
 #else
 haz_crea_toma(int nargs, awk_value_t *resultado)
 #endif
@@ -323,7 +323,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     awk_value_t nombre;
 
 #ifdef API_AWK_V2
-    (void) unused;
+    (void) desusado;
 #endif
 
     /* Sólo acepta 1 argumento */
@@ -381,7 +381,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 
 static awk_value_t *
 #ifdef API_AWK_V2
-haz_cierra_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *unused)
+haz_cierra_toma(int nargs, awk_value_t *resultado, struct awk_ext_func *desusado)
 #else
 haz_cierra_toma(int nargs, awk_value_t *resultado)
 #endif
@@ -389,7 +389,7 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
     awk_value_t nombre;
 
 #ifdef API_AWK_V2
-    (void) unused;
+    (void) desusado;
 #endif
 
     /* Sólo acepta 1 argumento */
@@ -427,7 +427,7 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
 static awk_value_t *
 #ifdef API_AWK_V2
 haz_extrae_primera(int nargs, awk_value_t *resultado,
-                   struct awk_ext_func *unused)
+                   struct awk_ext_func *desusado)
 #else
 haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
@@ -437,7 +437,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
 #ifdef API_AWK_V2
-    (void) unused;
+    (void) desusado;
 #endif
 
     /* Sólo acepta 1 argumento */
@@ -646,7 +646,7 @@ static int
 #ifdef API_AWK_V2
 conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len,
-                       const awk_fieldwidth_info_t **unused)
+                       const awk_fieldwidth_info_t **desusado)
 #else
 conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len)
@@ -657,7 +657,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
     (void) errcode;
 
 #ifdef API_AWK_V2
-    (void) unused;
+    (void) desusado;
 #endif
 
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
@@ -820,18 +820,18 @@ inicia_conector()
 
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma",   haz_crea_toma,      0, 0, awk_false, NULL },
-    { "cierratoma", haz_cierra_toma,    0, 0, awk_false, NULL },
-    { "traepctoma", haz_extrae_primera, 0, 0, awk_false, NULL },
+    { "creatoma",   haz_crea_toma,      1, 1, awk_false, NULL },
+    { "cierratoma", haz_cierra_toma,    1, 1, awk_false, NULL },
+    { "traepctoma", haz_extrae_primera, 1, 1, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma",   haz_crea_toma,      0 },
-    { "cierratoma", haz_cierra_toma,    0 },
-    { "traepctoma", haz_extrae_primera, 0 },
+    { "creatoma",   haz_crea_toma,      1 },
+    { "cierratoma", haz_cierra_toma,    1 },
+    { "traepctoma", haz_extrae_primera, 1 },
 };
 #endif
 
-/* Define función de carga */
+/* Cargar funciones */
 
 dl_load_func(lista_de_funciones, conector, "")
