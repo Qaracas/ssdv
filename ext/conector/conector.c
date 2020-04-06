@@ -306,6 +306,29 @@ si_es:
     return awk_true;
 }
 
+/* pon_num_en_coleccion -- añadir elemento numérico a la colección */
+
+static void
+pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
+{
+    awk_value_t index, value;
+
+    set_array_element(coleccion,
+        make_const_string(sub, strlen(sub), &index),
+        make_number(num, &value));
+}
+
+/* pon_txt_en_coleccion -- añadir elemento textual a la colección */
+
+static void
+pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
+{
+    awk_value_t index, value;
+
+    set_array_element(coleccion,
+        make_const_string(sub, strlen(sub), &index),
+        make_const_string(txt, strlen(txt), &value));
+}
 
 /**
  * Funciones que proporciona 'conector.c' a GAWK
@@ -432,7 +455,7 @@ haz_extrae_primera(int nargs, awk_value_t *resultado,
 haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
 {
-    awk_value_t nombre;
+    awk_value_t valorarg;
     struct sockaddr_in cliente;
     socklen_t lnt = (socklen_t) sizeof(cliente);
 
@@ -441,13 +464,13 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
 
     /* Sólo acepta 1 argumento */
-    if (nargs != 1)
+    if (nargs < 1 || nargs > 2)
         fatal(ext_id, "traepctoma: nº de argumentos incorrecto");
 
-    if (! get_argument(0, AWK_STRING, &nombre))
+    if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "traepctoma: tipo de argumento incorrecto");
 
-    if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0)
+    if (strcmp((const char *) valorarg.str_value.str, rt.nombre) != 0)
         fatal(ext_id, "traepctoma: toma escucha incorrecta");
 
     fd_set lst_df_sondear_lect, lst_df_sondear_escr;
@@ -479,10 +502,24 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
             
             /* Sí; es cliente */
 
-            /* POR HACER: Función para anunciar cliente */
-            //printf ("Conexión desde %s, puerto %d.\n",
-            //        inet_ntoa (cliente.sin_addr),
-            //        ntohs (cliente.sin_port));
+            /* Anunciar cliente */
+            if (nargs == 2) {
+                if (get_argument(1, AWK_ARRAY, &valorarg)) {
+llena_coleccion:
+                    pon_txt_en_coleccion(valorarg.array_cookie, "dir",
+                                         inet_ntoa(cliente.sin_addr));
+                    pon_num_en_coleccion(valorarg.array_cookie, "pto",
+                                         (double)ntohs(cliente.sin_port));
+                } else {
+                    if (valorarg.val_type == AWK_UNDEFINED) {
+                        set_argument(1, create_array());
+                        goto llena_coleccion;
+                    } else {
+                        lintwarn(ext_id,
+                                 "traepctoma: segundo argumento incorrecto");
+                    }
+                }
+            }
 
 sondea_salida:
             FD_ZERO(&lst_df_sondear_lect);
@@ -822,13 +859,13 @@ inicia_conector()
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma",   haz_crea_toma,      1, 1, awk_false, NULL },
     { "cierratoma", haz_cierra_toma,    1, 1, awk_false, NULL },
-    { "traepctoma", haz_extrae_primera, 1, 1, awk_false, NULL },
+    { "traepctoma", haz_extrae_primera, 2, 1, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma",   haz_crea_toma,      1 },
     { "cierratoma", haz_cierra_toma,    1 },
-    { "traepctoma", haz_extrae_primera, 1 },
+    { "traepctoma", haz_extrae_primera, 2 },
 };
 #endif
 
