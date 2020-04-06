@@ -43,12 +43,14 @@ BEGIN {
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Espero petición...";
-        traepctoma(canalTcpIP);
+        traepctoma(canalTcpIP, cli);
+        print "[" PROCINFO["pid"] "]", 
+            "Recibida petición desde " cli["dir"] ", puerto " cli["pto"] ".";
 
         # Procesar petición
         salir = 0;
         while ((canalTcpIP |& getline) > 0) {
-            print;
+            print "[" PROCINFO["pid"] "]", $0;
             if ($1 == "GET" && $2 == "/salir")
                 salir = 1;
             if (length($0) == 0)
