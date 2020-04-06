@@ -227,6 +227,6 @@ static awk_ext_func_t lista_de_funciones[] = {
 #endif
 
 
-/* Define función de carga */
+/* Cargar funciones */
 
 dl_load_func(lista_de_funciones, leeflujo, "")
