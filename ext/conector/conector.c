@@ -145,24 +145,28 @@ es_nodoip (char *nodo, char *puerto,
 
     void *resul, *local;
     j = *resultados;
-    while (j){
-        switch (j->ai_family) {
-        case AF_INET:
+    while (j) {
+        if (j->ai_family == AF_INET)
             resul = &((struct sockaddr_in*)j->ai_addr)->sin_addr;
-            break;
-        case AF_INET6:
+        else if (j->ai_family == AF_INET6)
             resul = &((struct sockaddr_in6*)j->ai_addr)->sin6_addr;
-            break;
+        else {
+            j = j->ai_next;
+            continue;
         }
         i = tomas_locales;
         while (i){
-            switch (i->ifa_addr->sa_family) {
-            case AF_INET:
+            if (i->ifa_addr->sa_family == AF_INET)
                 local = &((struct sockaddr_in*)i->ifa_addr)->sin_addr;
-                break;
-            case AF_INET6:
+            else if (i->ifa_addr->sa_family == AF_INET6)
                 local = &((struct sockaddr_in6*)i->ifa_addr)->sin6_addr;
-                break;
+            else {
+                i = i->ifa_next;
+                continue;
+            }
+            if (i->ifa_addr->sa_family != j->ai_family) {
+                i = i->ifa_next;
+                continue;
             }
             if (i->ifa_addr->sa_family == AF_INET) {
                 if (   ntohl(((struct in_addr*)local)->s_addr)
