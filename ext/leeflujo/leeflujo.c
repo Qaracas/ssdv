@@ -32,6 +32,8 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#define API_AWK_V2
+
 #include <stdio.h>
 #include <errno.h>
 #include <stddef.h>
@@ -41,8 +43,6 @@
 #include <sys/types.h>
 
 #include "gawkapi.h"
-
-#define API_AWK_V2
 
 static const gawk_api_t *api;   /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
