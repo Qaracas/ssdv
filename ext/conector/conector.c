@@ -32,6 +32,10 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#define API_AWK_V2
+
+#define _GNU_SOURCE
+
 #include <time.h>
 #include <stdio.h>
 #include <errno.h>
@@ -56,10 +60,6 @@
 #include <arpa/inet.h>
 
 #include "gawkapi.h"
-
-#define API_AWK_V2
-
-#define _GNU_SOURCE
 
 #define MAX_CNX_PENDIENTES 100 /* Máximo de conexiones pendientes permitidas */
 #define MAX_EVENTOS        10
@@ -94,25 +94,24 @@ static int libera; /* Indica memoria liberada */
 
 /* es_dirip -- Modifica criterios evitando a getaddrinfo() resolver nombre */
 
-//static int
-//es_dirip(char *ip, struct addrinfo *criterios)
-//{
-//    struct sockaddr_in t4;
-//    struct in6_addr    t6;
-//
-//    int rc = inet_pton(AF_INET, ip, &t4.sin_addr);
-//    if (rc == 1) {     /* ¿Dirección IPv4 válida? */
-//        criterios->ai_family = AF_INET;
-//        criterios->ai_flags |= AI_NUMERICHOST;
-//    } else {
-//        rc = inet_pton(AF_INET6, ip, &t6);
-//        if (rc == 1) { /* ¿Dirección IPv6 válida? */
-//            criterios->ai_family = AF_INET6;
-//            criterios->ai_flags |= AI_NUMERICHOST;
-//        }
-//    }
-//    return rc;
-//}
+static void
+es_dirip(char *ip, struct addrinfo *criterios)
+{
+    struct sockaddr_in t4;
+    struct in6_addr    t6;
+
+    int rc = inet_pton(AF_INET, ip, &t4.sin_addr);
+    if (rc == 1) {     /* ¿Dirección IPv4 válida? */
+        criterios->ai_family = AF_INET;
+        criterios->ai_flags |= AI_NUMERICHOST;
+    } else {
+        rc = inet_pton(AF_INET6, ip, &t6);
+        if (rc == 1) { /* ¿Dirección IPv6 válida? */
+            criterios->ai_family = AF_INET6;
+            criterios->ai_flags |= AI_NUMERICHOST;
+        }
+    }
+}
 
 static awk_bool_t
 es_nodoip (char *nodo, char *puerto, 
@@ -121,11 +120,25 @@ es_nodoip (char *nodo, char *puerto,
     int r;
     struct addrinfo criterios;
 
+    *es_local = awk_false;
+
     /* Criterios para seleccionar las estructuras de tomas IP
-     * que se volcarán a la lista 'resultados' */
+     * que 'getaddrinfo()' volcará a la lista 'resultados' */
     memset(&criterios, 0, sizeof(struct addrinfo));
     criterios.ai_family = AF_UNSPEC;     /* Vale IP v4 ó v6 */
     criterios.ai_socktype = SOCK_STREAM; /* Toma de datos sobre TCP */
+
+    if (strcmp(nodo, "0") == 0) {
+        criterios.ai_flags = AI_PASSIVE; /* Dirección IP comodín */
+        if ((r = getaddrinfo(NULL, puerto, &criterios, resultados)) != 0) {
+            fatal(ext_id, "getaddrinfo: %s: %s\n", nodo, gai_strerror(r));
+            return awk_false;
+        }
+        *es_local = awk_true;
+        return awk_true;
+    }
+
+    es_dirip(nodo, &criterios); /* Evitar resolver nombre */
 
     if ((r = getaddrinfo(nodo, puerto, &criterios, resultados)) != 0) {
         fatal(ext_id, "getaddrinfo: %s: %s\n", nodo, gai_strerror(r));
@@ -135,8 +148,6 @@ es_nodoip (char *nodo, char *puerto,
     /* Averiguamos si el nodo es local */
     struct ifaddrs *tomas_locales, *i;
     struct addrinfo *j;
-
-    *es_local = awk_false;
 
     if (getifaddrs(&tomas_locales) == -1) {
         fatal(ext_id, "conector: error obteniendo tomas de red locales");
@@ -295,7 +306,6 @@ es_fichero_especial(const char *nombre, t_ruta *ruta)
     } else if 
        (   strcmp(campo[4], "0") == 0
         && strcmp(campo[5], "0") == 0
-        && strcmp(campo[2], "0") != 0
         && atoi(campo[3]) > 0
         && es_nodoip(campo[2], campo[3], &ruta->stoma, &ruta->local)
         && ruta->local)
@@ -310,7 +320,7 @@ si_es:
     return awk_true;
 }
 
-/* pon_num_en_coleccion -- añadir elemento numérico a la colección */
+/* pon_num_en_coleccion -- Añadir elemento numérico a la colección */
 
 static void
 pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
@@ -322,7 +332,7 @@ pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
         make_number(num, &value));
 }
 
-/* pon_txt_en_coleccion -- añadir elemento textual a la colección */
+/* pon_txt_en_coleccion -- Añadir elemento textual a la colección */
 
 static void
 pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
@@ -604,12 +614,12 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     flujo = (t_datos_conector *) iobuf->opaque;
     libera_conector(flujo);
 
-    /* haz_cierra_toma() hace esto (conexión servidor) */
+    /* haz_cierra_toma() hace esto con la toma de escucha */
 
-    iobuf->fd = INVALID_HANDLE;
+    iobuf->fd = INVALID_HANDLE; /* Por ahora es un df ficticio */
 }
 
-/* cierra_toma_salida --- Cerrar toma conexión salida */
+/* cierra_toma_salida -- Cerrar toma conexión salida */
 
 static int
 cierra_toma_salida(FILE *fp, void *opaque)
@@ -618,9 +628,6 @@ cierra_toma_salida(FILE *fp, void *opaque)
 
     if (opaque == NULL)
         return EOF;
-
-    /* Ignorar flujo en favor del descriptor de fichero */
-    (void) fp;
 
     flujo = (t_datos_conector *) opaque;
 
@@ -655,14 +662,17 @@ cierra_toma_salida(FILE *fp, void *opaque)
         lintwarn(ext_id, "cierra_toma_salida: error cerrando salida");
     }
 
+    /* Se usa la toma_salida en su lugar, pero hay que cerrarlo */
+    fclose(fp);
+
     rt.des.toma_salida = INVALID_HANDLE;
     return 0;
 }
 
-/* apaga_toma_salida --- Apagar toma de salida */
+/* limpia_toma_salida -- Apagar toma de salida */
 
 static int
-apaga_toma_salida(FILE *fp, void *opaque)
+limpia_toma_salida(FILE *fp, void *opaque)
 {
     (void) fp;
     (void) opaque;
@@ -670,7 +680,7 @@ apaga_toma_salida(FILE *fp, void *opaque)
     return 0;
 }
 
-/* maneja_error --- De momento no hacer nada */
+/* maneja_error -- De momento no hacer nada */
 
 static int
 maneja_error(FILE *fp, void *opaque)
@@ -775,7 +785,7 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
     return (size * count);
 }
 
-/* conector_puede_aceptar_fichero -- retorna "true" si aceptamos fichero */
+/* conector_puede_aceptar_fichero -- Decide si aceptamos fichero */
 
 static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
@@ -833,7 +843,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     outbuf->fp = fdopen(rt.des.toma_salida, "w");
     outbuf->opaque = flujo;
     outbuf->gawk_fwrite = conector_escribe;
-    outbuf->gawk_fflush = apaga_toma_salida;
+    outbuf->gawk_fflush = limpia_toma_salida;
     outbuf->gawk_ferror = maneja_error;
     outbuf->gawk_fclose = cierra_toma_salida;
     outbuf->redirected = awk_true;
