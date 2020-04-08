@@ -50,13 +50,12 @@ BEGIN {
             cli["dir"] ", puerto " cli["pto"] ".";
 
         if ((pid = fork()) == 0) {
-            # Hijo
-            #cierratoma(canalTcpIP); # Ojo! Con fork el cierre afecta a ambos
+            # Rama hija
+            #cierratoma(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
             break;
         } else {
-            # Padre
-            waitpid(pid);
-            #close(canalTcpIP); # Ojo! Con fork el cierre afecta a ambos
+            # Rama padre
+            close(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
         }
     }
 
