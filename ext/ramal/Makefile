@@ -2,11 +2,9 @@ INC = /usr/include
 COP = -fPIC -shared -DHAVE_CONFIG_H -c -O -g
 CIN = -I$(INC)
 CC  = gcc -Wall -Wextra -pedantic
-DLB = ../lib
-EXT = conector
+EXT = ramal
 
-LOJ = $(EXT) cntr_cdntxt cntr_ruta cntr_toma cntr_stoma
-OJS := $(foreach i,$(LOJ),$(i).o)
+DLB = ../lib
 
 UNAME := $(shell uname)
 
@@ -18,12 +16,12 @@ SUFLIB = .so
 endif
 
 $(EXT): objetos
-	$(CC) -shared -o $(EXT)$(SUFLIB) $(OJS)
+	$(CC) -shared -o $(EXT)$(SUFLIB) $(EXT).o
 	mkdir -p $(DLB)
 	cp $(EXT)$(SUFLIB) $(DLB)
 
 objetos:
-	$(foreach i,$(LOJ),$(CC) $(COP) $(CIN) $(i).c;)
+	$(CC) $(COP) $(CIN) $(EXT).c
 
 limpia:
 	rm -rf *$(SUFLIB) *.o $(DLB)

@@ -8,4 +8,4 @@ $(EXT):
 	$(MAKE) -C $@
 
 limpia:
-	$(foreach ext,$(EXT), $(MAKE) -C $(ext) limpia ;)
+	$(foreach i,$(EXT),$(MAKE) -C $(i) limpia;)
