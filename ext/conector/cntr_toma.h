@@ -38,6 +38,8 @@
 /* Tome máximo para cola de conexiones pendientes */
 #define CNTR_MAX_PENDIENTES 100
 
+struct sockaddr;
+
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
@@ -52,12 +54,32 @@ typedef struct elector_es {
     unsigned int forzar      : 1;
 } t_elector_es;
 
+/* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
+
 int cntr_nueva_toma(t_cntr_ruta *ruta);
 
-int cntr_nueva_toma_servidor(t_cntr_ruta *ruta);
-
-int cntr_cierra_toma(t_cntr_ruta *ruta, t_elector_es opcion);
+/* cntr_borra_toma -- Borra toma de la memoria */
 
 void cntr_borra_toma(t_cntr_ruta *ruta);
+
+/* cntr_envia_a_toma -- Envía datos por la toma de conexión */
+
+int cntr_envia_a_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo);
+
+/* cntr_pon_a_escuchar_toma -- Pone a escuchar la toma 'nula' asociada
+                               a una ruta local */
+
+int cntr_pon_a_escuchar_toma(t_cntr_ruta *ruta);
+
+/* cntr_trae_primer_cliente_toma -- Extrae la primera conexión de una toma en
+                                    modo de escucha */
+
+int cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta,
+                                  struct sockaddr *cliente);
+
+/* cntr_cierra_toma -- Cierra toma especificada en 'opcion' y de la manera
+                       en que, también allí, se especifique */
+
+int cntr_cierra_toma(t_cntr_ruta *ruta, t_elector_es opcion);
 
 #endif /* TOMA_H */

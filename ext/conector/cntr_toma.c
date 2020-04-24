@@ -37,16 +37,19 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <sys/select.h>
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 
+/* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
+
 int
 cntr_nueva_toma(t_cntr_ruta *ruta)
 {
-    if (ruta == NULL)
+    if (ruta == NULL || ruta->toma != NULL)
         return CNTR_ERROR;
 
     cntr_asigmem(ruta->toma, t_cntr_toma_es *,
@@ -57,10 +60,36 @@ cntr_nueva_toma(t_cntr_ruta *ruta)
     return CNTR_HECHO;
 }
 
-int
-cntr_nueva_toma_servidor(t_cntr_ruta *ruta)
+/* cntr_borra_toma -- Borra toma de la memoria */
+
+void
+cntr_borra_toma(t_cntr_ruta *ruta)
 {
-    if (ruta == NULL)
+    if (ruta != NULL && ruta->toma != NULL)
+        free(ruta->toma);
+}
+
+/* cntr_envia_a_toma -- Envía datos por la toma de conexión */
+
+int
+cntr_envia_a_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo)
+{
+    if (send(ruta->toma->cliente, datos, tramo, 0) < 0) {
+        perror("send");
+        return CNTR_ERROR;
+    }
+    return CNTR_HECHO;
+}
+
+/* cntr_pon_a_escuchar_toma -- Pone a escuchar la toma 'nula' asociada
+                               a una ruta local */
+
+int
+cntr_pon_a_escuchar_toma(t_cntr_ruta *ruta)
+{
+    if (   ruta == NULL || ruta->stoma == NULL || ruta->toma == NULL
+        || ruta->toma->servidor != CNTR_DF_NULO
+        || ruta->local == cntr_falso)
         return CNTR_ERROR;
 
     struct addrinfo *rp;
@@ -69,7 +98,7 @@ cntr_nueva_toma_servidor(t_cntr_ruta *ruta)
         /* Crear toma de entrada y guardar df asociado a ella */
         ruta->toma->servidor = socket(rp->ai_family, rp->ai_socktype,
                      rp->ai_protocol);
-        if (ruta->toma->servidor == -1)
+        if (ruta->toma->servidor == CNTR_DF_NULO)
             continue;
         /* Asociar toma de entrada a una dirección IP y un puerto */
         int activo = 1;
@@ -95,56 +124,102 @@ cntr_nueva_toma_servidor(t_cntr_ruta *ruta)
     return CNTR_HECHO;
 }
 
+/* cntr_trae_primer_cliente_toma -- Extrae la primera conexión de una toma en
+                                    modo de escucha */
+
+int
+cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta, struct sockaddr *cliente)
+{
+    if (   ruta == NULL || ruta->toma == NULL 
+        || ruta->toma->servidor == CNTR_DF_NULO )
+        return CNTR_ERROR;
+
+    socklen_t lnt = (socklen_t) sizeof(*cliente);
+
+    fd_set lst_df_sondear_lect, lst_df_sondear_escr;
+
+    /* Borrar colección de tomas E/S a sondear */
+    FD_ZERO(&lst_df_sondear_lect);
+    FD_ZERO(&lst_df_sondear_escr);
+    /* Sondear toma de escucha */
+    FD_SET(ruta->toma->servidor, &lst_df_sondear_lect);
+
+    while (1) {
+        /* Parar hasta que llegue evento a una o más tomas activas */
+        if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
+                   NULL, NULL) < 0) {
+            perror("select");
+            return CNTR_ERROR;
+        }
+        /* Atender tomas con eventos de entrada pendientes */
+        if (FD_ISSET(ruta->toma->servidor, &lst_df_sondear_lect)) {
+            /* Extraer primera conexión de la cola de conexiones */
+            ruta->toma->cliente = accept(ruta->toma->servidor, cliente, &lnt);
+            /* ¿Es cliente? */
+            if (ruta->toma->cliente < 0) {
+                perror("accept");
+                return CNTR_ERROR;
+            }
+            /* Sí; es cliente */
+sondea_salida:
+            FD_ZERO(&lst_df_sondear_lect);
+            FD_ZERO(&lst_df_sondear_escr);
+            FD_SET(ruta->toma->cliente, &lst_df_sondear_lect);
+            FD_SET(ruta->toma->cliente, &lst_df_sondear_escr);
+        } else {
+            if (   FD_ISSET(ruta->toma->cliente, &lst_df_sondear_lect)
+                && FD_ISSET(ruta->toma->cliente, &lst_df_sondear_escr))
+                break;
+            else
+                goto sondea_salida;
+        }
+    }
+    return CNTR_HECHO;
+}
+
+/* cntr_cierra_toma -- Cierra toma especificada en 'opcion' y de la manera
+                       en que, también allí, se especifique */
+
 int 
 cntr_cierra_toma(t_cntr_ruta *ruta, t_elector_es opcion)
 {
     if (ruta == NULL || ruta->toma == NULL)
         return CNTR_ERROR;
 
-    int *toma_es = NULL;
+    int *toma_es[2] = {NULL, NULL};
 
     if (opcion.es_servidor)
-        toma_es = &ruta->toma->servidor;
+        toma_es[0] = &ruta->toma->servidor;
 
     if (opcion.es_cliente)
-        toma_es = &ruta->toma->cliente;
+        toma_es[1] = &ruta->toma->cliente;
 
-    if (toma_es != NULL) {
-//    /* Leemos lo que quede antes de cerrar la toma */
-//    while (1) {
-//        flujo->lgtope = recv(rt.toma->cliente,
-//                             flujo->tope + flujo->ptrreg,
-//                             flujo->max - flujo->ptrreg, MSG_DONTWAIT);
-//        if ((   flujo->lgtope < 0
-//             && (EAGAIN == errno || EWOULDBLOCK == errno))
-//            || flujo->lgtope == 0)
-//            break;
-//    }
-        if (opcion.forzar) {
-            /* Forzar cierre y evitar (TIME_WAIT) */
-            struct linger so_linger;
-            so_linger.l_onoff  = 1;
-            so_linger.l_linger = 0;
-            setsockopt(*toma_es, SOL_SOCKET, SO_LINGER,
-                       &so_linger, sizeof(so_linger));
-        }
-        if (shutdown(*toma_es, SHUT_RDWR) < 0) {
-            perror("shutdown");
+    for (int i = 0; i < 2; i++) {
+        if (toma_es[i] == NULL)
+            continue;
+        if (*toma_es[i] != CNTR_DF_NULO) {
+            if (opcion.forzar) {
+                /* Forzar cierre y evitar (TIME_WAIT) */
+                struct linger so_linger;
+                so_linger.l_onoff  = 1;
+                so_linger.l_linger = 0;
+                setsockopt(*toma_es[i], SOL_SOCKET, SO_LINGER,
+                           &so_linger, sizeof(so_linger));
+                goto a_trochemoche;
+            }
+            if (shutdown(*toma_es[i], SHUT_RDWR) < 0) {
+                perror("shutdown");
+                return CNTR_ERROR;
+            }
+a_trochemoche:
+            if (close(*toma_es[i]) < 0) {
+                perror("cierra");
+                return CNTR_ERROR;
+            }
+            *toma_es[i] = CNTR_DF_NULO;
+        } else
             return CNTR_ERROR;
-        }
-        if (close(*toma_es) < 0) {
-            perror("cierra");
-            return CNTR_ERROR;
-        }
-        *toma_es = CNTR_DF_NULO;
     }
 
     return CNTR_HECHO;
-}
-
-void
-cntr_borra_toma(t_cntr_ruta *ruta)
-{
-    if (ruta != NULL && ruta->toma != NULL)
-        free(ruta->toma);
 }

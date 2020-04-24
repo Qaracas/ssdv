@@ -35,8 +35,12 @@
 #ifndef RUTA_H
 #define RUTA_H
 
+struct addrinfo;
+
 struct cntr_toma_es;
 typedef struct cntr_toma_es t_cntr_toma_es;
+
+typedef enum cntr_verdad t_ctrn_verdad;
 
 /* 
  * Nombres especiales para los ficheros de red (nombre o id de ruta)
@@ -55,7 +59,11 @@ typedef struct cntr_ruta {
     t_ctrn_verdad   local;   /* ¿Ruta local o remota? */
 } t_cntr_ruta;
 
+/* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
+
 int cntr_nueva_ruta(const char *nombre, t_cntr_ruta *ruta);
+
+/* cntr_borra_ruta -- Libera memoria y destruye toma */
 
 void cntr_borra_ruta(t_cntr_ruta *ruta);
 

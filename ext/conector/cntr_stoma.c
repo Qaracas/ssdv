@@ -64,7 +64,8 @@ es_dirip(char *ip, struct addrinfo *criterios)
     }
 }
 
-/* nueva_stoma -- Crea estructura addrinfo y marca si es nodo local */
+/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la rura y la marca 
+                       adecuadamente si es un nodo local */
 
 int
 cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)

@@ -111,8 +111,6 @@ hecho:
                  "cntr_nueva_ruta");
     strcpy(ruta->nombre, (const char *) nombre);
 
-    cntr_nueva_toma(ruta);
-
     return CNTR_HECHO;
 error:
     free(v_nombre);
@@ -127,7 +125,8 @@ cntr_borra_ruta(t_cntr_ruta *ruta)
 {
     if (ruta != NULL) {
         if (ruta->nombre != NULL) free(ruta->nombre);
-        if (ruta->toma   != NULL) free(ruta->toma);
-        if (ruta->stoma  != NULL) cntr_borra_stoma(ruta);
+        cntr_borra_stoma(ruta);
+        cntr_borra_toma(ruta);
+        free(ruta);
     }
 }

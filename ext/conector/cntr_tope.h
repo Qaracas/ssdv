@@ -32,19 +32,34 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef STOMA_H
-#define STOMA_H
+#ifndef TOPE_H
+#define TOPE_H
+
+#define CNTR_TOPE_VACIO (-2)
+#define CNTR_TOPE_RESTO (-3)
 
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
-/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la rura y la marca 
-                       adecuadamente si es un nodo local */
+typedef struct cntr_tope {
+    size_t  max;    /* Tamaño máximo asignado al tramo de datos del tope */
+    ssize_t ldatos; /* Tamaño del tramo de datos almacenado actualmente  */
+    char    *datos; /* Tramo de datos que almacena el tope        */
+    int     ptrreg; /* Inicio registro dentro del tope (actual)   */
+    int     ptareg; /* Inicio registro dentro del tope (anterior) */
+} t_cntr_tope;
 
-int cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta);
+/* cntr_nuevo_tope -- Crea nuevo tope de tamaño 'max' */
 
-/* cntr_borra_stoma -- Libera memoria ocupada por estructura addrinfo */
+int cntr_nuevo_tope(size_t max, t_cntr_tope **tope);
 
-void cntr_borra_stoma(t_cntr_ruta *ruta);
+/* cntr_borra_tope -- Libera memoria y destruye tope */
 
-#endif /* STOMA_H */
+void cntr_borra_tope(t_cntr_tope *tope);
+
+/* cntr_recb_llena_tope -- Llenar tope con los datos recibidos de la toma
+                           asociada a una ruta */
+
+int cntr_recb_llena_tope(t_cntr_ruta *ruta, t_cntr_tope *tope);
+
+#endif /* TOPE_H */
