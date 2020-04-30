@@ -57,6 +57,7 @@ typedef struct cntr_ruta {
     struct addrinfo *stoma;  /* Estructura de la toma */
     t_cntr_toma_es  *toma;   /* Toma de datos de E/S  */
     t_ctrn_verdad   local;   /* ¿Ruta local o remota? */
+    t_ctrn_verdad   segura;  /* ¿Es segura?           */
 } t_cntr_ruta;
 
 /* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
