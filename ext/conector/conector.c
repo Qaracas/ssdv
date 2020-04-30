@@ -73,8 +73,6 @@ int plugin_is_GPL_compatible;
 
 static t_cntr_ruta rt;  /* Ruta de conexión */
 
-static int libera; /* Indica memoria liberada */
-
 /* pon_num_en_coleccion -- Añadir elemento numérico a la colección */
 
 static void
@@ -252,6 +250,7 @@ typedef struct datos_proc_bidireccional {
     char        *sdrt;  /* Separador de registro. Variable RS de gawk */
     size_t      tsr;    /* Tamaño cadena separador de registro        */
     size_t      lgtreg; /* Tamaño actual del registro                 */
+    int         en_uso;
 } t_datos_conector;
 
 /* libera_conector -- Libera datos */
@@ -260,11 +259,10 @@ static void
 libera_conector(t_datos_conector *dc)
 {
     /* Evita liberar memoria dos veces */
-    if (libera > 0)
-        libera--;
-    else
+    if (dc->en_uso) {
+        dc->en_uso--;
         return;
-
+    }
     cntr_borra_tope(dc->tope);
     gawk_free(dc->sdrt);
     gawk_free(dc);
@@ -467,6 +465,7 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     emalloc(dc, t_datos_conector *,
         sizeof(t_datos_conector), "conector_tomar_control_de");
     dc->lgtreg = 0;
+    dc->en_uso = 1;
 
     dc->tsr = strlen((const char *) valor_rs.str_value.str);
     emalloc(dc->sdrt, char *,
@@ -474,7 +473,6 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     strcpy(dc->sdrt, (const char *) valor_rs.str_value.str);
 
     cntr_nuevo_tope((size_t) valor_tpm.num_value, &dc->tope);
-    libera = 1;
 
     /* Entrada */
     inbuf->fd = rt.toma->cliente + 1;
