@@ -123,10 +123,10 @@ error:
 void
 cntr_borra_ruta(t_cntr_ruta *ruta)
 {
-    if (ruta != NULL) {
-        if (ruta->nombre != NULL) free(ruta->nombre);
-        cntr_borra_stoma(ruta);
-        cntr_borra_toma(ruta);
-        free(ruta);
-    }
+    cntr_borra_stoma(ruta);
+    cntr_borra_toma(ruta);
+    free(ruta->nombre);
+    free(ruta);
+    ruta->nombre = NULL;
+    ruta = NULL;
 }

@@ -65,8 +65,8 @@ cntr_nueva_toma(t_cntr_ruta *ruta)
 void
 cntr_borra_toma(t_cntr_ruta *ruta)
 {
-    if (ruta != NULL && ruta->toma != NULL)
-        free(ruta->toma);
+    free(ruta->toma);
+    ruta->toma = NULL;
 }
 
 /* cntr_envia_a_toma -- Envía datos por la toma de conexión */

@@ -160,6 +160,6 @@ fin:
 void
 cntr_borra_stoma(t_cntr_ruta *ruta)
 {
-    if (ruta != NULL && ruta->stoma != NULL)
-        freeaddrinfo(ruta->stoma);
+    freeaddrinfo(ruta->stoma);
+    ruta->stoma = NULL;
 }

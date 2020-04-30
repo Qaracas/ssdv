@@ -68,10 +68,10 @@ cntr_nuevo_tope(size_t max, t_cntr_tope **tope)
 void
 cntr_borra_tope(t_cntr_tope *tope)
 {
-    if (tope != NULL) {
-        if (tope->datos != NULL) free(tope->datos);
-        free(tope);
-    }
+    free(tope->datos);
+    free(tope);
+    tope->datos = NULL;
+    tope = NULL;
 }
 
 /* cntr_recb_llena_tope -- Llenar tope con los datos recibidos de la toma
