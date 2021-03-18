@@ -41,14 +41,16 @@ typedef struct cntr_ruta t_cntr_ruta;
 typedef enum cntr_verdad t_ctrn_verdad;
 
 typedef struct cntr_pieza {
-    t_cntr_ruta       *ruta;  /* Ruta de conexión */
-    struct cntr_pieza *otra;  /* Siguiente ruta   */
+    t_cntr_ruta       *ruta;       /* Ruta de conexión */
+    struct cntr_pieza *siguiente;  /* Siguiente pieza  */
 } t_cntr_pieza;
 
-int pon_en_serie(t_cntr_ruta *ruta, t_cntr_pieza *serie);
+extern t_cntr_pieza *cntr_serie;
 
-int quita_de_serie(t_cntr_ruta *ruta, t_cntr_pieza *serie);
+int cntr_pon_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie);
 
-t_ctrn_verdad existe_en_serie(char *ruta, t_cntr_pieza *serie);
+t_cntr_pieza *cntr_borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie);
+
+t_cntr_ruta *cntr_existe_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie);
 
 #endif /* SERIE_H */

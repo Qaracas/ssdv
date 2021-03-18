@@ -44,7 +44,7 @@
 /* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
 
 int
-cntr_nueva_ruta(const char *nombre, t_cntr_ruta *ruta)
+cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
     if (   nombre == NULL
         || cuenta_crtrs(nombre, '/') == CNTR_ERROR
@@ -77,26 +77,26 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta *ruta)
        )
         goto error;
 
-    if (ruta == NULL)
-        cntr_asigmem(ruta, t_cntr_ruta *,
+    if (*ruta == NULL)
+        cntr_asigmem(*ruta, t_cntr_ruta *,
                      sizeof(t_cntr_ruta), "cntr_nueva_ruta");
-    ruta->stoma = NULL;
-    ruta->toma  = NULL;
-    ruta->local = cntr_falso;
+    (*ruta)->stoma = NULL;
+    (*ruta)->toma  = NULL;
+    (*ruta)->local = cntr_falso;
 
     if (   strcmp(campo[2], "0") == 0
         && strcmp(campo[3], "0") == 0
         && strcmp(campo[4], "0") != 0
         && atoi(campo[5]) > 0
-        && cntr_nueva_stoma(campo[4], campo[5], ruta) == CNTR_HECHO)
+        && cntr_nueva_stoma(campo[4], campo[5], *ruta) == CNTR_HECHO)
     { /* Cliente */
         goto error; /* De momento no */
     } else if 
        (   strcmp(campo[4], "0") == 0
         && strcmp(campo[5], "0") == 0
         && atoi(campo[3]) > 0
-        && cntr_nueva_stoma(campo[2], campo[3], ruta) == CNTR_HECHO
-        && ruta->local)
+        && cntr_nueva_stoma(campo[2], campo[3], *ruta) == CNTR_HECHO
+        && (*ruta)->local)
     { /* Servidor */
         goto hecho;
     } else {
@@ -106,15 +106,15 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta *ruta)
 hecho:
     free(v_nombre);
 
-    cntr_asigmem(ruta->nombre, char *,
+    cntr_asigmem((*ruta)->nombre, char *,
                  strlen((const char *) nombre) + 1,
                  "cntr_nueva_ruta");
-    strcpy(ruta->nombre, (const char *) nombre);
+    strcpy((*ruta)->nombre, (const char *) nombre);
 
     return CNTR_HECHO;
 error:
     free(v_nombre);
-    cntr_borra_stoma(ruta);
+    cntr_borra_stoma(*ruta);
     return CNTR_ERROR;
 }
 

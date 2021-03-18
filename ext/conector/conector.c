@@ -36,27 +36,23 @@
 
 #define _GNU_SOURCE
 
-#include <time.h>
 #include <stdio.h>
 #include <errno.h>
-#include <assert.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "gawkapi.h"
+
+#include <arpa/inet.h>
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 #include "cntr_tope.h"
+#include "cntr_serie.h"
 
 #define MAX_EVENTOS        10
 
@@ -71,7 +67,7 @@ int plugin_is_GPL_compatible;
 
 /* Variables globales que mantienen su valor */
 
-static t_cntr_ruta rt;  /* Ruta de conexión */
+static t_cntr_ruta *rt;  /* Ruta de conexión */
 
 /* pon_num_en_coleccion -- Añadir elemento numérico a la colección */
 
@@ -125,16 +121,25 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 
     if (   nombre.str_value.str == NULL
         || cntr_nueva_ruta((const char *) nombre.str_value.str, &rt) < 0
-        || !rt.local)
+        || !rt->local)
     {
         fatal(ext_id, "creatoma: fichero de red remoto o no válido");
     }
 
-    cntr_nueva_toma(&rt);
-    if (cntr_pon_a_escuchar_toma(&rt) == CNTR_ERROR)
+    extern t_cntr_pieza *cntr_serie;
+//    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7070/0/0", &cntr_serie);
+    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7071/0/0", &cntr_serie);
+    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7072/0/0", &cntr_serie);
+
+    if (cntr_existe_ruta_en_serie("/ired/tcp/localhost/7071/0/0",
+                                  cntr_serie) != NULL)
+        cntr_borra_ruta_en_serie("/ired/tcp/localhost/7071/0/0", cntr_serie);
+
+    cntr_nueva_toma(rt);
+    if (cntr_pon_a_escuchar_toma(rt) == CNTR_ERROR)
         fatal(ext_id, "creatoma: error creando toma de escucha");
 
-    return make_number(rt.toma->servidor, resultado);
+    return make_number(rt->toma->servidor, resultado);
 }
 
 /* haz_cierra_toma -- Cierra toma de escucha */
@@ -163,7 +168,7 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if (strcmp((const char *) nombre.str_value.str, rt.nombre) != 0) {
+    if (strcmp((const char *) nombre.str_value.str, rt->nombre) != 0) {
         lintwarn(ext_id, "cierratoma: toma no válida");
         return make_number(-1, resultado);
     }
@@ -171,13 +176,10 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
     t_elector_es opcn;
     opcn.es_servidor = 1;
     opcn.es_cliente  = 0;
-    if (cntr_cierra_toma(&rt, opcn) == CNTR_ERROR)
+    if (cntr_cierra_toma(rt, opcn) == CNTR_ERROR)
         lintwarn(ext_id, "cierratoma: error cerrando toma");
 
-    
-    //cntr_borra_ruta(&rt); // De momento hacemos lo siguiente:
-    cntr_borra_stoma(&rt);
-    cntr_borra_toma(&rt);
+    cntr_borra_ruta(rt);
 
     return make_number(0, resultado);
 }
@@ -205,12 +207,12 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
     if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "traepctoma: tipo de argumento incorrecto");
 
-    if (strcmp((const char *) valorarg.str_value.str, rt.nombre) != 0)
+    if (strcmp((const char *) valorarg.str_value.str, rt->nombre) != 0)
         fatal(ext_id, "traepctoma: toma escucha incorrecta");
 
     struct sockaddr_in cliente;
 
-    if (cntr_trae_primer_cliente_toma(&rt,
+    if (cntr_trae_primer_cliente_toma(rt,
                                       (struct sockaddr*) &cliente)
                                       == CNTR_ERROR)
         fatal(ext_id, "traepctoma: error creando toma de escucha");
@@ -236,7 +238,7 @@ llena_coleccion:
 
     /* Devuelve accept(), es decir, el descriptor de fichero de la 
        toma de conexión recién creada con el cliente. */
-    return make_number(rt.toma->cliente, resultado);
+    return make_number(rt->toma->cliente, resultado);
 }
 
 /**
@@ -318,7 +320,7 @@ cierra_toma_salida(FILE *fp, void *opaque)
     opcn.es_servidor = 0;
     opcn.es_cliente  = 1;
     opcn.forzar      = 0;
-    if (cntr_cierra_toma(&rt, opcn) == CNTR_ERROR)
+    if (cntr_cierra_toma(rt, opcn) == CNTR_ERROR)
         lintwarn(ext_id, "conector: error cerrando toma cliente");
 
     /* Se usa la toma_salida en su lugar, pero hay que cerrarlo */
@@ -377,7 +379,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     if (dc->tope->ldatos == 0) {
 lee_mas:
-        recbt = cntr_recb_llena_tope(&rt, dc->tope);
+        recbt = cntr_recb_llena_tope(rt, dc->tope);
         switch (recbt) {
             case CNTR_TOPE_RESTO:
                 *out = dc->tope->datos;
@@ -424,7 +426,7 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
     (void) fp;
     (void) opaque;
 
-    if (cntr_envia_a_toma(&rt, buf, (size * count)) == CNTR_ERROR) {
+    if (cntr_envia_a_toma(rt, buf, (size * count)) == CNTR_ERROR) {
         lintwarn(ext_id, "conector_escribe: error enviado registro");
         return EOF;
     }
@@ -438,9 +440,9 @@ static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
 {
     return (   name != NULL
-            && strcmp(name, rt.nombre) == 0 /* Toma registrada 'creatoma' */
-            && rt.toma->cliente > 0         /* De momento */
-            && rt.local);                   /* De momento sólo local */
+            && strcmp(name, rt->nombre) == 0 /* Toma registrada 'creatoma' */
+            && rt->toma->cliente > 0         /* De momento */
+            && rt->local);                   /* De momento sólo local */
 }
 
 /* conector_tomar_control_de -- Prepara procesador bidireccional */
@@ -475,13 +477,13 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     cntr_nuevo_tope((size_t) valor_tpm.num_value, &dc->tope);
 
     /* Entrada */
-    inbuf->fd = rt.toma->cliente + 1;
+    inbuf->fd = rt->toma->cliente + 1;
     inbuf->opaque = dc;
     inbuf->get_record = conector_trae_registro;
     inbuf->close_func = cierra_toma_entrada;
 
     /* Salida */
-    outbuf->fp = fdopen(rt.toma->cliente, "w");
+    outbuf->fp = fdopen(rt->toma->cliente, "w");
     outbuf->opaque = dc;
     outbuf->gawk_fwrite = conector_escribe;
     outbuf->gawk_fflush = limpia_toma_salida;

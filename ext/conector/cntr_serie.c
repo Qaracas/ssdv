@@ -31,38 +31,66 @@
  * License along with this software; see the file LICENSE. If
  * not, see <https://www.gnu.org/licenses/>.
  */
+
 #include <string.h>
+#include <stdlib.h>
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_serie.h"
 
+t_cntr_pieza *cntr_serie;
+
 int
-pon_en_serie(t_cntr_ruta *ruta, t_cntr_pieza *serie)
+cntr_pon_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie)
 {
-    if (ruta == NULL )
+    if (nombre_ruta == NULL )
         return CNTR_ERROR;
 
-    if (serie == NULL) {
-        ntr_asigmem(serie, t_cntr_pieza *,
-                    sizeof(t_cntr_pieza), "pon_en_serie");
-        serie->ruta = ruta;
-        serie->otra = NULL;
-    } else if (strcmp(ruta->name, serie->ruta->nombre) == 0)
+    if (*serie == NULL) {
+        cntr_asigmem(*serie, t_cntr_pieza *,
+                     sizeof(t_cntr_pieza), "cntr_pon_ruta_en_serie");
+        (*serie)->ruta = NULL;
+        (*serie)->siguiente = NULL;
+        if (cntr_nueva_ruta(nombre_ruta, &(*serie)->ruta) == CNTR_ERROR) {
+            cntr_borra_ruta((*serie)->ruta);
+            free(*serie);
+            return CNTR_ERROR;
+        }
+    } else if (strcmp(nombre_ruta, (*serie)->ruta->nombre) == 0)
         return CNTR_ERROR;
     else
-        return pon_en_serie(ruta, serie->otra);
+        return cntr_pon_ruta_en_serie(nombre_ruta, &(*serie)->siguiente);
     return CNTR_HECHO;
 }
 
-t_ctrn_verdad
-existe_en_serie(char *ruta, t_cntr_pieza *serie)
+t_cntr_pieza
+*cntr_borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie)
 {
-    if (ruta == NULL || serie == NULL)
-        return cntr_falso;
-    else if (strcmp(ruta, serie->ruta->nombre) == 0)
-        return cntr_cierto;
+    if (nombre_ruta == NULL || serie == NULL)
+        return NULL;
+
+    if (strcmp(nombre_ruta, serie->ruta->nombre) == 0) {
+        cntr_borra_ruta(serie->ruta);
+        serie = serie->siguiente;
+        free(serie->siguiente);
+    } else {
+        t_cntr_pieza *soldar = cntr_borra_ruta_en_serie(nombre_ruta,
+                                                        serie->siguiente);
+        free(serie->siguiente);
+        serie->siguiente = soldar;
+    }
+    return serie->siguiente;
+}
+
+t_cntr_ruta
+*cntr_existe_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie)
+{
+    if (nombre_ruta == NULL || serie == NULL)
+        return NULL;
+    else if (strcmp(nombre_ruta, serie->ruta->nombre) == 0)
+        return serie->ruta;
     else
-        return existe_en_serie(ruta, serie->otra);
-    return cntr_falso;
+        return cntr_existe_ruta_en_serie(nombre_ruta, serie->siguiente);
+    return NULL;
 }

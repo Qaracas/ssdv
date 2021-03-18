@@ -62,7 +62,7 @@ typedef struct cntr_ruta {
 
 /* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
 
-int cntr_nueva_ruta(const char *nombre, t_cntr_ruta *ruta);
+int cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta);
 
 /* cntr_borra_ruta -- Libera memoria y destruye toma */
 
