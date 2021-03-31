@@ -45,12 +45,10 @@ typedef struct cntr_pieza {
     struct cntr_pieza *siguiente;  /* Siguiente pieza  */
 } t_cntr_pieza;
 
-extern t_cntr_pieza *cntr_serie;
+t_cntr_ruta *cntr_pon_ruta_en_serie(const char *nombre_ruta);
 
-int cntr_pon_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie);
+void cntr_borra_ruta_de_serie(const char *nombre_ruta);
 
-t_cntr_pieza *cntr_borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie);
-
-t_cntr_ruta *cntr_existe_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie);
+t_cntr_ruta *cntr_busca_ruta_en_serie(const char *nombre_ruta);
 
 #endif /* SERIE_H */
