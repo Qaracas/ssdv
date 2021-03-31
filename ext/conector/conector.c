@@ -107,6 +107,7 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t nombre;
+    extern t_cntr_ruta *rt;
 
 #ifdef API_AWK_V2
     (void) desusado;
@@ -119,21 +120,13 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     if (! get_argument(0, AWK_STRING, &nombre))
         fatal(ext_id, "creatoma: tipo de argumento incorrecto");
 
-    if (   nombre.str_value.str == NULL
-        || cntr_nueva_ruta((const char *) nombre.str_value.str, &rt) < 0
-        || !rt->local)
-    {
-        fatal(ext_id, "creatoma: fichero de red remoto o no válido");
-    }
+    if (nombre.str_value.str == NULL)
+        fatal(ext_id, "creatoma: error leyendo nombre de fichero especial");
 
-    extern t_cntr_pieza *cntr_serie;
-//    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7070/0/0", &cntr_serie);
-    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7071/0/0", &cntr_serie);
-    cntr_pon_ruta_en_serie("/ired/tcp/localhost/7072/0/0", &cntr_serie);
+    rt = cntr_pon_ruta_en_serie((const char *) nombre.str_value.str);
 
-    if (cntr_existe_ruta_en_serie("/ired/tcp/localhost/7071/0/0",
-                                  cntr_serie) != NULL)
-        cntr_borra_ruta_en_serie("/ired/tcp/localhost/7071/0/0", cntr_serie);
+    if (rt == NULL || !rt->local)
+        fatal(ext_id, "creatoma: la ruta ya existe o es incorrecta");
 
     cntr_nueva_toma(rt);
     if (cntr_pon_a_escuchar_toma(rt) == CNTR_ERROR)
@@ -152,6 +145,7 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t nombre;
+    extern t_cntr_ruta *rt;
 
 #ifdef API_AWK_V2
     (void) desusado;
@@ -168,8 +162,13 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
         return make_number(-1, resultado);
     }
 
-    if (strcmp((const char *) nombre.str_value.str, rt->nombre) != 0) {
-        lintwarn(ext_id, "cierratoma: toma no válida");
+    if (nombre.str_value.str == NULL)
+        fatal(ext_id, "cierratoma: error leyendo nombre de fichero especial");
+
+    rt = cntr_busca_ruta_en_serie((const char *) nombre.str_value.str);
+
+    if (rt == NULL) {
+        lintwarn(ext_id, "cierratoma: toma de escucha inexistente");
         return make_number(-1, resultado);
     }
 
@@ -179,7 +178,8 @@ haz_cierra_toma(int nargs, awk_value_t *resultado)
     if (cntr_cierra_toma(rt, opcn) == CNTR_ERROR)
         lintwarn(ext_id, "cierratoma: error cerrando toma");
 
-    cntr_borra_ruta(rt);
+    //cntr_borra_ruta(rt);
+    cntr_borra_ruta_de_serie((const char *) nombre.str_value.str);
 
     return make_number(0, resultado);
 }
@@ -195,20 +195,26 @@ haz_extrae_primera(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t valorarg;
+    extern t_cntr_ruta *rt;
 
 #ifdef API_AWK_V2
     (void) desusado;
 #endif
 
-    /* Sólo acepta 1 argumento */
+    /* Sólo acepta 2 argumentos como máximo */
     if (nargs < 1 || nargs > 2)
         fatal(ext_id, "traepctoma: nº de argumentos incorrecto");
 
     if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "traepctoma: tipo de argumento incorrecto");
 
-    if (strcmp((const char *) valorarg.str_value.str, rt->nombre) != 0)
-        fatal(ext_id, "traepctoma: toma escucha incorrecta");
+    if (valorarg.str_value.str == NULL)
+        fatal(ext_id, "traepctoma: error leyendo nombre de fichero especial");
+
+    rt = cntr_busca_ruta_en_serie((const char *) valorarg.str_value.str);
+
+    if (rt == NULL)
+        fatal(ext_id, "traepctoma: toma escucha inexistente");
 
     struct sockaddr_in cliente;
 
@@ -308,6 +314,7 @@ static int
 cierra_toma_salida(FILE *fp, void *opaque)
 {
     t_datos_conector *dc;
+    extern t_cntr_ruta *rt;
 
     if (opaque == NULL)
         return EOF;
@@ -368,6 +375,7 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     t_datos_conector *dc;
     int recbt;
+    extern t_cntr_ruta *rt;
 
     (void) errcode;
 
@@ -425,6 +433,7 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
 {
     (void) fp;
     (void) opaque;
+    extern t_cntr_ruta *rt;
 
     if (cntr_envia_a_toma(rt, buf, (size * count)) == CNTR_ERROR) {
         lintwarn(ext_id, "conector_escribe: error enviado registro");
@@ -439,6 +448,8 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
 static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
 {
+    extern t_cntr_ruta *rt;
+
     return (   name != NULL
             && strcmp(name, rt->nombre) == 0 /* Toma registrada 'creatoma' */
             && rt->toma->cliente > 0         /* De momento */
@@ -453,11 +464,12 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
 {
     awk_value_t valor_tpm, valor_rs;
     t_datos_conector *dc;
+    extern t_cntr_ruta *rt;
 
     (void) name;
 
     if (   inbuf == NULL || outbuf == NULL
-        || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) /* ToPe Máximo */
+        || !(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)) /* Tope máximo */
         || valor_tpm.num_value <= 0
         || !(sym_lookup("RS",  AWK_STRING, &valor_rs))  /* Valor de RS */
        )
