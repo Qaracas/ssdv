@@ -67,7 +67,7 @@ int plugin_is_GPL_compatible;
 
 /* Variables globales que mantienen su valor */
 
-static t_cntr_ruta *rt;  /* Ruta de conexión */
+static t_cntr_ruta *rt;  /* Ruta de conexión en uso */
 
 /* pon_num_en_coleccion -- Añadir elemento numérico a la colección */
 
@@ -451,9 +451,12 @@ conector_puede_aceptar_fichero(const char *name)
     extern t_cntr_ruta *rt;
 
     return (   name != NULL
-            && strcmp(name, rt->nombre) == 0 /* Toma registrada 'creatoma' */
-            && rt->toma->cliente > 0         /* De momento */
-            && rt->local);                   /* De momento sólo local */
+            && (   strcmp(name, rt->nombre) == 0 /* 1) ¿Es toma en uso?
+                                                    2) ¿Está registrada?
+                                                       ('creatoma')        */
+                || (rt = cntr_busca_ruta_en_serie(name)) != NULL)
+            && rt->toma->cliente > 0             /* De momento             */
+            && rt->local);                       /* Sólo local (para ssdv) */
 }
 
 /* conector_tomar_control_de -- Prepara procesador bidireccional */
