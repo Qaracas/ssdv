@@ -38,11 +38,27 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/select.h>
+#include <string.h>
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
+#include "cntr_tope.h"
+
+/* long_registro -- Calcula distancia entre dos posiciones de memoria */
+
+static int
+long_registro(char *ini, char *fin)
+{
+    int c = 0;
+    char *i = ini;
+
+    while (i++ != fin)
+        c++;
+
+    return c;
+}
 
 /* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
 
@@ -72,12 +88,63 @@ cntr_borra_toma(t_cntr_ruta *ruta)
 /* cntr_envia_a_toma -- Envía datos por la toma de conexión */
 
 int
-cntr_envia_a_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo)
+cntr_envia_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo)
 {
     if (send(ruta->toma->cliente, datos, tramo, 0) < 0) {
         perror("send");
         return CNTR_ERROR;
     }
+    return CNTR_HECHO;
+}
+
+/* cntr_recibe_toma -- Recibe datos por la toma de conexión */
+
+int
+cntr_recibe_toma(t_cntr_ruta **ruta, t_datos_conector **dc,
+                 char **out, char **rt_start, size_t *rt_len)
+{
+    int recbt;
+
+    if ((*dc)->tope->ldatos == 0) {
+lee_mas:
+        recbt = cntr_recb_llena_tope(*ruta, (*dc)->tope);
+        switch (recbt) {
+            case CNTR_TOPE_RESTO:
+                *out = (*dc)->tope->datos;
+                return (*dc)->tope->ptrreg;
+            case CNTR_TOPE_VACIO:
+                return EOF;
+            case CNTR_ERROR:
+                return CNTR_ERROR;
+        }
+    } else {
+        /* Apunta al siguiente registro del tope */
+        (*dc)->tope->ptrreg += (*dc)->lgtreg + (int) (*dc)->tsr;
+    }
+
+    /* Apuntar al siguiente registro (variable RT) */
+    *rt_start = strstr(  (const char*) (*dc)->tope->datos
+                       + (*dc)->tope->ptrreg,
+                       (const char*) (*dc)->sdrt);
+    *rt_len = (*dc)->tsr;
+
+    if (*rt_start == NULL) {
+        *rt_len = 0;
+        /* Copia lo que nos queda por leer al inicio del tope */
+        memcpy((*dc)->tope->datos,
+               (const void *) ((*dc)->tope->datos + (*dc)->tope->ptrreg),
+                 ((*dc)->tope->ldatos + (*dc)->tope->ptareg)
+               - (*dc)->tope->ptrreg);
+        (*dc)->tope->ptrreg =   ((*dc)->tope->ldatos + (*dc)->tope->ptareg)
+                           - (*dc)->tope->ptrreg;
+        goto lee_mas;
+    }
+
+    (*dc)->lgtreg =   long_registro((*dc)->tope->datos
+                    + (*dc)->tope->ptrreg, *rt_start);
+
+    *out = (*dc)->tope->datos + (*dc)->tope->ptrreg;
+
     return CNTR_HECHO;
 }
 

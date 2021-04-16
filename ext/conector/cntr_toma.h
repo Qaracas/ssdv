@@ -54,6 +54,17 @@ typedef struct elector_es {
     unsigned int forzar      : 1;
 } t_elector_es;
 
+struct cntr_tope;
+typedef struct cntr_tope t_cntr_tope;
+
+typedef struct datos_proc_bidireccional {
+    t_cntr_tope *tope;  /* Tope de datos entre la E/S                 */
+    char        *sdrt;  /* Separador de registro. Variable RS de gawk */
+    size_t      tsr;    /* Tamaño cadena separador de registro        */
+    size_t      lgtreg; /* Tamaño actual del registro                 */
+    int         en_uso;
+} t_datos_conector;
+
 /* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
 
 int cntr_nueva_toma(t_cntr_ruta *ruta);
@@ -62,9 +73,14 @@ int cntr_nueva_toma(t_cntr_ruta *ruta);
 
 void cntr_borra_toma(t_cntr_ruta *ruta);
 
-/* cntr_envia_a_toma -- Envía datos por la toma de conexión */
+/* cntr_envia_toma -- Envía datos por la toma de conexión */
 
-int cntr_envia_a_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo);
+int cntr_envia_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo);
+
+/* cntr_recibe_toma -- Recibe datos por la toma de conexión */
+
+int cntr_recibe_toma(t_cntr_ruta **ruta, t_datos_conector **dc,
+                     char **out, char **rt_start, size_t *rt_len);
 
 /* cntr_pon_a_escuchar_toma -- Pone a escuchar la toma 'nula' asociada
                                a una ruta local */
