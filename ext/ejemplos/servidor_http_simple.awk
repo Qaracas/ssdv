@@ -44,7 +44,7 @@ BEGIN {
     while (1) {
         print "[" PROCINFO["pid"] "]", "Espero petición...";
         traepctoma(canalTcpIP, cli);
-        print "[" PROCINFO["pid"] "]", 
+        print "[" PROCINFO["pid"] "]",
             "Recibida petición desde " cli["dir"] ", puerto " cli["pto"] ".";
 
         # Procesar petición
@@ -66,6 +66,6 @@ BEGIN {
             break;
     }
 
-    cierratoma(canalTcpIP);   
+    cierratoma(canalTcpIP);
     exit 0;
 }
