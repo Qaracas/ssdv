@@ -80,11 +80,13 @@ function bucle(canal, puerto,    cli, salir)
 
         # Mandar respuesta
         print "HTTP/1.1 200 Vale" |& canal;
-        print "Connection: close" |& canal;
-        close(canal);
 
         if (salir)
             break;
+
+        close(canal);
     }
+    print "Connection: close" |& canal;
+    close(canal);
     cierratoma(canal);
 }
