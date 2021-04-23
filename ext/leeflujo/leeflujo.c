@@ -34,6 +34,8 @@
 
 #define API_AWK_V2
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <errno.h>
 #include <stddef.h>
@@ -210,7 +212,7 @@ static awk_input_parser_t procesador_leeflujo = {
 static awk_bool_t
 inicia_leeflujo()
 {
-    register_input_parser(& procesador_leeflujo);
+    register_input_parser(&procesador_leeflujo);
     return awk_true;
 }
 
