@@ -37,30 +37,25 @@
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
+#include "cntr_toma.h"
+#include "cntr_stoma.h"
 #include "cntr_serie.h"
 
 static t_cntr_pieza *serie;
 
 static t_cntr_ruta
-*pon_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie)
+*pon_ruta_en_serie(t_cntr_ruta *ruta, t_cntr_pieza **serie)
 {
-    if (nombre_ruta == NULL )
-        return NULL;
-
     if (*serie == NULL) {
         cntr_asigmem(*serie, t_cntr_pieza *,
                      sizeof(t_cntr_pieza), "cntr_pon_ruta_en_serie");
-        (*serie)->ruta = NULL;
+        (*serie)->ruta = ruta;
         (*serie)->siguiente = NULL;
-        if (cntr_nueva_ruta(nombre_ruta, &(*serie)->ruta) == CNTR_ERROR) {
-            cntr_borra_ruta((*serie)->ruta);
-            free(*serie);
-            return NULL;
-        }
-    } else if (strcmp(nombre_ruta, (*serie)->ruta->nombre) == 0)
+    } else if (strcmp(ruta->nombre, (*serie)->ruta->nombre) == 0) {
         return NULL;
-    else
-        return pon_ruta_en_serie(nombre_ruta, &(*serie)->siguiente);
+    } else
+        return pon_ruta_en_serie(ruta, &(*serie)->siguiente);
+
     return (*serie)->ruta;
 }
 
@@ -95,14 +90,11 @@ static t_cntr_ruta
 }
 
 t_cntr_ruta
-*cntr_pon_ruta_en_serie(const char *nombre_ruta)
+*cntr_pon_ruta_en_serie(t_cntr_ruta *ruta)
 {
     extern t_cntr_pieza *serie;
 
-    if (nombre_ruta == NULL )
-        return NULL;
-
-    return pon_ruta_en_serie(nombre_ruta, &serie);
+    return pon_ruta_en_serie(ruta, &serie);
 }
 
 void

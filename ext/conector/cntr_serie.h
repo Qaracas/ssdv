@@ -45,7 +45,7 @@ typedef struct cntr_pieza {
     struct cntr_pieza *siguiente;  /* Siguiente pieza  */
 } t_cntr_pieza;
 
-t_cntr_ruta *cntr_pon_ruta_en_serie(const char *nombre_ruta);
+t_cntr_ruta *cntr_pon_ruta_en_serie(t_cntr_ruta *ruta);
 
 void cntr_borra_ruta_de_serie(const char *nombre_ruta);
 
