@@ -32,9 +32,9 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-//#ifdef HAVE_CONFIG_H
-//#include <config.h>
-//#endif
+#define API_AWK_V2
+
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <assert.h>
@@ -49,8 +49,6 @@
 #include <sys/stat.h>
 
 #include "gawkapi.h"
-
-#define _GNU_SOURCE
 
 static const gawk_api_t *api;   /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
@@ -68,8 +66,8 @@ pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
     awk_value_t index, value;
 
     set_array_element(coleccion,
-        make_const_string(sub, strlen(sub), & index),
-        make_number(num, & value));
+        make_const_string(sub, strlen(sub), &index),
+        make_number(num, &value));
 
 }
 
