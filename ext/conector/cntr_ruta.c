@@ -41,10 +41,20 @@
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 
-/* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
-
-int
-cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
+/*
+ * Nombres especiales para los ficheros de red (nombre o id de ruta)
+ *
+ * Basado en:
+ * https://www.gnu.org/software/gawk/manual/html_node/TCP_002fIP-Networking.html
+ * 
+ * /tipo-red/protocolo/ip-local/puerto-local/nombre-ip-remoto/puerto-remoto
+ *
+ * Ejemplos: 
+ *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
+ *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
+ */
+static int
+es_fichero_servidor(const char *nombre, t_cntr_ruta **ruta)
 {
     if (   nombre == NULL
         || cuenta_crtrs(nombre, '/') == CNTR_ERROR
@@ -55,7 +65,7 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
         || caracter_ini(nombre) != '/'
         || caracter_fin(nombre) == '/'
        )
-        return CNTR_ERROR;
+        return cntr_falso;
 
     char *v_nombre;
     cntr_asigmem(v_nombre, char *,
@@ -69,56 +79,55 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
     for (c = 0; (c < cntr_ltd(campo) - 1) && campo[c] != NULL;)
         campo[++c] = strtok(NULL, "/");
 
+    free(v_nombre);
+
     if (   c != (cntr_ltd(campo) - 1)
         || strcmp(campo[0], "ired") != 0
         || strcmp(campo[1], "tcp") != 0
         || !es_numero(campo[3])
         || !es_numero(campo[5])
        )
-        goto error;
+        return cntr_falso;
 
-    if (*ruta == NULL)
-        cntr_asigmem(*ruta, t_cntr_ruta *,
-                     sizeof(t_cntr_ruta), "cntr_nueva_ruta");
+    if (   strcmp(campo[4], "0") != 0
+        || strcmp(campo[5], "0") != 0
+        || atoi(campo[3]) < 0
+       )
+        return cntr_falso;
+
+    if (cntr_nueva_stoma(campo[2], campo[3], *ruta) == CNTR_ERROR)
+        return cntr_falso;
+
+    if (!(*ruta)->local)
+        return cntr_falso;
+
+    return cntr_cierto;
+}
+
+/* cntr_nueva_ruta */
+
+int
+cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
+{
+    cntr_asigmem(*ruta, t_cntr_ruta *,
+                 sizeof(t_cntr_ruta), "cntr_nueva_ruta");
     (*ruta)->stoma = NULL;
     (*ruta)->toma  = NULL;
     (*ruta)->local = cntr_falso;
 
-    if (   strcmp(campo[2], "0") == 0
-        && strcmp(campo[3], "0") == 0
-        && strcmp(campo[4], "0") != 0
-        && atoi(campo[5]) > 0
-        && cntr_nueva_stoma(campo[4], campo[5], *ruta) == CNTR_HECHO)
-    { /* Cliente */
-        goto error; /* De momento no */
-    } else if 
-       (   strcmp(campo[4], "0") == 0
-        && strcmp(campo[5], "0") == 0
-        && atoi(campo[3]) > 0
-        && cntr_nueva_stoma(campo[2], campo[3], *ruta) == CNTR_HECHO
-        && (*ruta)->local)
-    { /* Servidor */
-        goto hecho;
-    } else {
-        goto error;
+    if (!es_fichero_servidor(nombre, ruta)) {
+        cntr_borra_ruta(*ruta);
+        return CNTR_ERROR;
     }
-
-hecho:
-    free(v_nombre);
 
     cntr_asigmem((*ruta)->nombre, char *,
                  strlen((const char *) nombre) + 1,
                  "cntr_nueva_ruta");
     strcpy((*ruta)->nombre, (const char *) nombre);
-
     return CNTR_HECHO;
-error:
-    free(v_nombre);
-    cntr_borra_stoma(*ruta);
-    return CNTR_ERROR;
 }
 
-/* cntr_borra_ruta -- Libera memoria y destruye toma */
+/* cntr_borra_ruta */
 
 void
 cntr_borra_ruta(t_cntr_ruta *ruta)

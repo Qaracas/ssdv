@@ -42,16 +42,6 @@ typedef struct cntr_toma_es t_cntr_toma_es;
 
 typedef enum cntr_verdad t_ctrn_verdad;
 
-/* 
- * Nombres especiales para los ficheros de red (nombre o id de ruta)
- * 
- * /tipo-red/protocolo/ip-local/puerto-local/nombre-ip-remoto/puerto-remoto
- *
- * Ejemplos: 
- *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
- *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
- */
-
 typedef struct cntr_ruta {
     char            *nombre; /* Identificador de ruta */
     struct addrinfo *stoma;  /* Estructura de la toma */
@@ -60,11 +50,17 @@ typedef struct cntr_ruta {
     t_ctrn_verdad   segura;  /* ¿Es segura?           */
 } t_cntr_ruta;
 
-/* cntr_nueva_ruta -- Crea nueva ruta a partir de un fichero especial */
+/* cntr_nueva_ruta --
+ *
+ * Crea nueva ruta a partir de un fichero especial
+ */
 
 int cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta);
 
-/* cntr_borra_ruta -- Libera memoria y destruye toma */
+/* cntr_borra_ruta --
+ *
+ * Libera memoria y destruye toma
+ */
 
 void cntr_borra_ruta(t_cntr_ruta *ruta);
 
