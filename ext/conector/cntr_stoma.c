@@ -64,7 +64,7 @@ es_dirip(char *ip, struct addrinfo *criterios)
     }
 }
 
-/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la rura y la marca 
+/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la ruta y la marca 
                        adecuadamente si es un nodo local */
 
 int
