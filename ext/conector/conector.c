@@ -124,16 +124,27 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     if (nombre.str_value.str == NULL)
         fatal(ext_id, "creatoma: error leyendo nombre de fichero especial");
 
-    rt = cntr_pon_ruta_en_serie((const char *) nombre.str_value.str);
+    if (cntr_nueva_ruta((const char *) nombre.str_value.str,
+                        &rt) == CNTR_ERROR) {
+        cntr_borra_ruta(rt);
+        fatal(ext_id, "creatoma: error creando ruta");
+    }
 
-    if (rt == NULL || !rt->local)
-        fatal(ext_id, "creatoma: la ruta ya existe o es incorrecta");
+    if (!rt->local) {
+        cntr_borra_ruta(rt);
+        fatal(ext_id, "creatoma: la ruta no es local");
+    }
 
     if (cntr_nueva_toma(rt) == CNTR_ERROR)
         fatal(ext_id, "creatoma: error creando toma de datos");
 
     if (cntr_pon_a_escuchar_toma(rt) == CNTR_ERROR)
         fatal(ext_id, "creatoma: error al escuchar por la toma");
+
+    if (cntr_pon_ruta_en_serie(rt) == NULL) {
+        cntr_borra_ruta(rt);
+        fatal(ext_id, "creatoma: la ruta ya existe o es incorrecta");
+    }
 
     return make_number(rt->toma->servidor, resultado);
 }
@@ -257,7 +268,13 @@ llena_coleccion:
 
 /* Los datos del puntero oculto */
 
-// t_datos_conector *dc;
+typedef struct datos_proc_bidireccional {
+    t_cntr_tope *tope;  /* Tope de datos entre la E/S                 */
+    char        *sdrt;  /* Separador de registro. Variable RS de gawk */
+    size_t      tsr;    /* Tamaño cadena separador de registro        */
+    size_t      lgtreg; /* Tamaño actual del registro                 */
+    int         en_uso;
+} t_datos_conector;
 
 /* libera_conector -- Libera datos */
 
@@ -342,21 +359,36 @@ maneja_error(FILE *fp, void *opaque)
     return 0;
 }
 
-/* conector_trae_registro -- Lee un registro cada vez */
+/* long_registro -- Calcula distancia entre dos posiciones de memoria */
+
+static int
+long_registro(char *ini, char *fin)
+{
+    int c = 0;
+    char *i = ini;
+
+    while (i++ != fin)
+        c++;
+
+    return c;
+}
+
+/* conector_recibe_datos -- Lee un registro cada vez */
 
 static int
 #ifdef API_AWK_V2
-conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
+conector_recibe_datos(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len,
                        const awk_fieldwidth_info_t **desusado)
 #else
-conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
+conector_recibe_datos(char **out, awk_input_buf_t *iobuf, int *errcode,
                        char **rt_start, size_t *rt_len)
 #endif
 {
     if (out == NULL || iobuf == NULL || iobuf->opaque == NULL)
         return EOF;
 
+    int recbt;
     t_datos_conector *dc;
     extern t_cntr_ruta *rt;
 
@@ -368,17 +400,54 @@ conector_trae_registro(char **out, awk_input_buf_t *iobuf, int *errcode,
 
     dc = (t_datos_conector *) iobuf->opaque;
 
-    if (cntr_recibe_toma(&rt, &dc, out, rt_start, rt_len) == CNTR_ERROR)
-        fatal(ext_id,
-              "conector_trae_registro: error llenando de entrada");
+    if (dc->tope->ldatos == 0) {
+lee_mas:
+        recbt = cntr_recibe_toma(rt, dc->tope);
+        switch (recbt) {
+            case CNTR_TOPE_RESTO:
+                *out = dc->tope->datos;
+                return dc->tope->ptrreg;
+            case CNTR_TOPE_VACIO:
+                return EOF;
+            case CNTR_ERROR:
+                fatal(ext_id,
+                    "conector_recibe_datos: error llenando de entrada");
+        }
+    } else {
+        /* Apunta al siguiente registro del tope */
+        dc->tope->ptrreg += dc->lgtreg + (int) dc->tsr;
+    }
+
+    /* Apuntar al siguiente registro (variable RT) */
+    *rt_start = strstr(  (const char*) dc->tope->datos
+                       + dc->tope->ptrreg,
+                       (const char*) dc->sdrt);
+    *rt_len = dc->tsr;
+
+    if (*rt_start == NULL) {
+        *rt_len = 0;
+        /* Copia lo que nos queda por leer al inicio del tope */
+        memcpy(dc->tope->datos,
+               (const void *) (dc->tope->datos + dc->tope->ptrreg),
+                 (dc->tope->ldatos + dc->tope->ptareg)
+               - dc->tope->ptrreg);
+        dc->tope->ptrreg =   (dc->tope->ldatos + dc->tope->ptareg)
+                           - dc->tope->ptrreg;
+        goto lee_mas;
+    }
+
+    dc->lgtreg =   long_registro(dc->tope->datos
+                 + dc->tope->ptrreg, *rt_start);
+
+    *out = dc->tope->datos + dc->tope->ptrreg;
 
     return dc->lgtreg;
 }
 
-/* conector_escribe -- Envía respuesta a solicitud del cliente */
+/* conector_envia_datos -- Envía respuesta a solicitud del cliente */
 
 static size_t
-conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
+conector_envia_datos(const void *buf, size_t size, size_t count, FILE *fp,
                  void *opaque)
 {
     (void) fp;
@@ -386,7 +455,7 @@ conector_escribe(const void *buf, size_t size, size_t count, FILE *fp,
     extern t_cntr_ruta *rt;
 
     if (cntr_envia_toma(rt, buf, (size * count)) == CNTR_ERROR) {
-        lintwarn(ext_id, "conector_escribe: error enviado registro");
+        lintwarn(ext_id, "conector_envia_datos: error enviado registro");
         return EOF;
     }
 
@@ -444,13 +513,13 @@ conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
     /* Entrada */
     inbuf->fd = rt->toma->cliente + 1;
     inbuf->opaque = dc;
-    inbuf->get_record = conector_trae_registro;
+    inbuf->get_record = conector_recibe_datos;
     inbuf->close_func = cierra_toma_entrada;
 
     /* Salida */
     outbuf->fp = fdopen(rt->toma->cliente, "w");
     outbuf->opaque = dc;
-    outbuf->gawk_fwrite = conector_escribe;
+    outbuf->gawk_fwrite = conector_envia_datos;
     outbuf->gawk_fflush = limpia_toma_salida;
     outbuf->gawk_ferror = maneja_error;
     outbuf->gawk_fclose = cierra_toma_salida;
