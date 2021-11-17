@@ -43,6 +43,8 @@
 
 static t_cntr_pieza *serie;
 
+/* privada - pon_ruta_en_serie */
+
 static t_cntr_ruta
 *pon_ruta_en_serie(t_cntr_ruta *ruta, t_cntr_pieza **serie)
 {
@@ -59,12 +61,15 @@ static t_cntr_ruta
     return (*serie)->ruta;
 }
 
+/* privada - borra_ruta_en_serie */
+
 static void
 borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie)
 {
     if (nombre_ruta != NULL && *serie != NULL) {
-        if (strcmp(nombre_ruta, (*serie)->ruta->nombre) == 0) {
-            cntr_borra_ruta((*serie)->ruta);
+        if (strcmp(nombre_ruta,
+                   (const char *)(*serie)->ruta->nombre) == 0) {
+            //cntr_borra_ruta((*serie)->ruta);
             if ((*serie)->siguiente == NULL ) {
                 free(*serie);
                 *serie = NULL;
@@ -76,6 +81,8 @@ borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie)
         }
     }
 }
+
+/* privada - busca_ruta_en_serie */
 
 static t_cntr_ruta
 *busca_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie)
@@ -89,6 +96,8 @@ static t_cntr_ruta
     return NULL;
 }
 
+/* cntr_pon_ruta_en_serie */
+
 t_cntr_ruta
 *cntr_pon_ruta_en_serie(t_cntr_ruta *ruta)
 {
@@ -97,6 +106,8 @@ t_cntr_ruta
     return pon_ruta_en_serie(ruta, &serie);
 }
 
+/* cntr_borra_ruta_de_serie */
+
 void
 cntr_borra_ruta_de_serie(const char *nombre_ruta)
 {
@@ -104,6 +115,8 @@ cntr_borra_ruta_de_serie(const char *nombre_ruta)
 
     borra_ruta_en_serie(nombre_ruta, &serie);
 }
+
+/* cntr_busca_ruta_en_serie */
 
 t_cntr_ruta
 *cntr_busca_ruta_en_serie(const char *nombre_ruta)
