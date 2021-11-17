@@ -40,17 +40,21 @@ BEGIN {
 
     canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
+    
+    borrar = "/ired/tcp/localhost/7071/0/0";
+    creatoma(borrar);
 
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Espero petición...";
-        traepctoma(canalTcpIP, cli);
+        print "[" PROCINFO["pid"] "]", "Esperando petición...";
+        traeprcli(canalTcpIP, cli);
         print "[" PROCINFO["pid"] "]",
-            "Recibida petición desde " cli["dir"] ", puerto " cli["pto"] ".";
+            "Petición recibida desde " \
+            cli["dir"] ", puerto " cli["pto"] ".";
 
         # Procesar petición
         salir = 0;
         while ((canalTcpIP |& getline) > 0) {
-            print "[" PROCINFO["pid"] "]", $0;
+            print "<", $0;
             if ($1 == "GET" && $2 == "/salir")
                 salir = 1;
             if (length($0) == 0)
@@ -58,7 +62,12 @@ BEGIN {
         }
 
         # Mandar respuesta
+        print "[" PROCINFO["pid"] "]",
+              "Respuesta enviada hacia " \
+              cli["dir"] ", puerto " cli["pto"] ".";
+        print "> HTTP/1.1 200 Vale";
         print "HTTP/1.1 200 Vale" |& canalTcpIP;
+        print "> Connection: close"
         print "Connection: close" |& canalTcpIP;
         close(canalTcpIP);
 
@@ -66,6 +75,7 @@ BEGIN {
             break;
     }
 
-    cierratoma(canalTcpIP);
+    cierrasrv(canalTcpIP);
+    matatoma(canalTcpIP);
     exit 0;
 }

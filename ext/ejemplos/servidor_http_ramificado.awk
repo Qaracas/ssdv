@@ -44,14 +44,15 @@ BEGIN {
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
-        traepctoma(canalTcpIP, cli);
+        traeprcli(canalTcpIP, cli);
         print "[" PROCINFO["pid"] "]",
             "Padre: recibida petición desde " \
             cli["dir"] ", puerto " cli["pto"] ".";
 
         if ((pid = fork()) == 0) {
             # Rama hija
-            #cierratoma(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
+            #cierrasrv(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
+            #matatoma(canalTcpIP);
             break;
         } else {
             # Rama padre

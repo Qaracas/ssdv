@@ -64,7 +64,7 @@ function bucle(canal, puerto,    cli, salir)
     while (1) {
         print "[" PROCINFO["pid"] "]", "Escuchando en puerto " \
             puerto ". Espero petición...";
-        traepctoma(canal, cli);
+        traeprcli(canal, cli);
         print "[" PROCINFO["pid"] "]",
             "Recibida petición desde " cli["dir"] ", puerto " cli["pto"] ".";
 
@@ -88,5 +88,6 @@ function bucle(canal, puerto,    cli, salir)
     }
     print "Connection: close" |& canal;
     close(canal);
-    cierratoma(canal);
+    cierrasrv(canal);
+    matatoma(canal);
 }
