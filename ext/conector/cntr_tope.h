@@ -42,24 +42,32 @@ struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
 typedef struct cntr_tope {
-    size_t  max;    /* Tamaño máximo asignado al tramo de datos del tope */
-    ssize_t ldatos; /* Tamaño del tramo de datos almacenado actualmente  */
+    size_t  max;    /* Tamaño máximo del tope                     */
+    ssize_t ldatos; /* Tamaño de los datos almacenado actualmente */
     char    *datos; /* Tramo de datos que almacena el tope        */
     int     ptrreg; /* Inicio registro dentro del tope (actual)   */
     int     ptareg; /* Inicio registro dentro del tope (anterior) */
 } t_cntr_tope;
 
-/* cntr_nuevo_tope -- Crea nuevo tope de tamaño 'max' */
+/* cntr_nuevo_tope --
+ *
+ * Crea nuevo tope de tamaño 'max'
+ */
 
 int cntr_nuevo_tope(size_t max, t_cntr_tope **tope);
 
-/* cntr_borra_tope -- Libera memoria y destruye tope */
+/* cntr_borra_tope --
+ *
+ * Libera memoria y destruye tope
+ */
 
 void cntr_borra_tope(t_cntr_tope *tope);
 
-/* cntr_recb_llena_tope -- Llenar tope con los datos recibidos de la toma
-                           asociada a una ruta */
+/* cntr_recb_llena_tope --
+ *
+ * Llenar tope con los datos recibidos de la toma asociada a una ruta
+ */
 
-int cntr_recb_llena_tope(t_cntr_ruta *ruta, t_cntr_tope *tope);
+int cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope);
 
 #endif /* TOPE_H */

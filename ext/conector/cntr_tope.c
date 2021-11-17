@@ -42,7 +42,7 @@
 #include "cntr_toma.h"
 #include "cntr_tope.h"
 
-/* cntr_nuevo_tope -- Crea nuevo tope de tamaño 'max' */
+/* cntr_nuevo_tope */
 
 int
 cntr_nuevo_tope(size_t max, t_cntr_tope **tope)
@@ -63,7 +63,7 @@ cntr_nuevo_tope(size_t max, t_cntr_tope **tope)
         return CNTR_HECHO;
 }
 
-/* cntr_borra_tope -- Libera memoria y destruye tope */
+/* cntr_borra_tope */
 
 void
 cntr_borra_tope(t_cntr_tope *tope)
@@ -74,17 +74,16 @@ cntr_borra_tope(t_cntr_tope *tope)
     tope = NULL;
 }
 
-/* cntr_recb_llena_tope -- Llenar tope con los datos recibidos de la toma
-                           asociada a una ruta */
+/* cntr_recb_llena_tope */
 
 int
-cntr_recb_llena_tope(t_cntr_ruta *ruta, t_cntr_tope *tope)
+cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope)
 {
-    if (   ruta == NULL || ruta->toma == NULL || tope == NULL
-        || ruta->toma->cliente == CNTR_DF_NULO)
+    if (   toma == NULL || tope == NULL
+        || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
-    tope->ldatos = recv(ruta->toma->cliente,
+    tope->ldatos = recv(toma->cliente,
                         tope->datos + tope->ptrreg,
                         tope->max - tope->ptrreg, 0);
 
