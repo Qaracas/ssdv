@@ -53,8 +53,8 @@
  *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
  *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
  */
-static int
-es_fichero_servidor(const char *nombre, t_cntr_ruta **ruta)
+int
+procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
     if (   nombre == NULL
         || cuenta_crtrs(nombre, '/') == CNTR_ERROR
@@ -65,7 +65,7 @@ es_fichero_servidor(const char *nombre, t_cntr_ruta **ruta)
         || caracter_ini(nombre) != '/'
         || caracter_fin(nombre) == '/'
        )
-        return cntr_falso;
+        return CNTR_ERROR;
 
     char *v_nombre;
     cntr_asigmem(v_nombre, char *,
@@ -79,29 +79,26 @@ es_fichero_servidor(const char *nombre, t_cntr_ruta **ruta)
     for (c = 0; (c < cntr_ltd(campo) - 1) && campo[c] != NULL;)
         campo[++c] = strtok(NULL, "/");
 
-    free(v_nombre);
-
     if (   c != (cntr_ltd(campo) - 1)
         || strcmp(campo[0], "ired") != 0
         || strcmp(campo[1], "tcp") != 0
         || !es_numero(campo[3])
-        || !es_numero(campo[5])
-       )
-        return cntr_falso;
-
-    if (   strcmp(campo[4], "0") != 0
-        || strcmp(campo[5], "0") != 0
         || atoi(campo[3]) < 0
+        || strcmp(campo[4], "0") != 0
+        || strcmp(campo[5], "0") != 0
        )
-        return cntr_falso;
+        return CNTR_ERROR;
 
-    if (cntr_nueva_stoma(campo[2], campo[3], *ruta) == CNTR_ERROR)
-        return cntr_falso;
+    (*ruta)->tipo = strdup(campo[0]);
+    (*ruta)->protocolo = strdup(campo[1]);
+    (*ruta)->nodo_local = strdup(campo[2]);
+    (*ruta)->puerto_local = strdup(campo[3]);
+    (*ruta)->nodo_remoto = strdup(campo[4]);
+    (*ruta)->puerto_remoto = strdup(campo[5]);
 
-    if (!(*ruta)->local)
-        return cntr_falso;
+    free(v_nombre);
 
-    return cntr_cierto;
+    return CNTR_HECHO;
 }
 
 /* cntr_nueva_ruta */
@@ -110,13 +107,12 @@ int
 cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
     cntr_asigmem(*ruta, t_cntr_ruta *,
-                 sizeof(t_cntr_ruta), "cntr_nueva_ruta");
-    (*ruta)->stoma = NULL;
-    (*ruta)->toma  = NULL;
-    (*ruta)->local = cntr_falso;
+                 sizeof(t_cntr_ruta),
+                 "cntr_nueva_ruta");
 
-    if (!es_fichero_servidor(nombre, ruta)) {
-        cntr_borra_ruta(*ruta);
+    if (procesa_nombre_ruta(nombre, ruta) == CNTR_ERROR) {
+        free(ruta);
+        ruta = NULL;
         return CNTR_ERROR;
     }
 
@@ -124,6 +120,10 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
                  strlen((const char *) nombre) + 1,
                  "cntr_nueva_ruta");
     strcpy((*ruta)->nombre, (const char *) nombre);
+
+    (*ruta)->toma = NULL;
+    (*ruta)->local = cntr_cierto;
+
     return CNTR_HECHO;
 }
 
@@ -132,10 +132,24 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
 void
 cntr_borra_ruta(t_cntr_ruta *ruta)
 {
-    cntr_borra_stoma(ruta);
-    cntr_borra_toma(ruta);
+    if (ruta->toma != NULL) {
+        cntr_borra_infred(ruta->toma);
+        cntr_borra_toma(ruta->toma);
+    }
     free(ruta->nombre);
-    free(ruta);
     ruta->nombre = NULL;
+    free(ruta->tipo);
+    ruta->tipo = NULL;
+    free(ruta->protocolo);
+    ruta->protocolo = NULL;
+    free(ruta->nodo_local);
+    ruta->nodo_local = NULL;
+    free(ruta->puerto_local);
+    ruta->puerto_local = NULL;
+    free(ruta->nodo_remoto);
+    ruta->nodo_remoto = NULL;
+    free(ruta->puerto_remoto);
+    ruta->puerto_remoto = NULL;
+    free(ruta);
     ruta = NULL;
 }

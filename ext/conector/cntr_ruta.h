@@ -43,11 +43,16 @@ typedef struct cntr_toma_es t_cntr_toma_es;
 typedef enum cntr_verdad t_ctrn_verdad;
 
 typedef struct cntr_ruta {
-    char            *nombre; /* Identificador de ruta */
-    struct addrinfo *stoma;  /* Estructura de la toma */
-    t_cntr_toma_es  *toma;   /* Toma de datos de E/S  */
-    t_ctrn_verdad   local;   /* ¿Ruta local o remota? */
-    t_ctrn_verdad   segura;  /* ¿Es segura?           */
+    char            *nombre;        /* Identificador de ruta    */
+    char            *tipo;          /* Normalmente ired         */
+    char            *protocolo;     /* Normalmente TCP          */
+    char            *nodo_local;    /* Nombre o dir IP del nodo */
+    char            *puerto_local;  /* Puerto de E/S            */
+    char            *nodo_remoto;   /* Nombre o dir IP del nodo */
+    char            *puerto_remoto; /* Puerto remoto de E/S     */
+    t_cntr_toma_es  *toma;          /* Toma de datos de E/S     */
+    t_ctrn_verdad   local;          /* ¿Ruta local?             */
+    t_ctrn_verdad   segura;         /* ¿Es segura?              */
 } t_cntr_ruta;
 
 /* cntr_nueva_ruta --
