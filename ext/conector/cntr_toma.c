@@ -46,77 +46,96 @@
 #include "cntr_stoma.h"
 #include "cntr_tope.h"
 
-/* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
+/* cntr_nueva_toma */
 
-int
+t_cntr_toma_es *
 cntr_nueva_toma(t_cntr_ruta *ruta)
 {
-    if (ruta == NULL || ruta->toma != NULL)
-        return CNTR_ERROR;
+    if (ruta == NULL)
+        return NULL;
 
     cntr_asigmem(ruta->toma, t_cntr_toma_es *,
                  sizeof(t_cntr_toma_es), "cntr_nueva_toma");
     ruta->toma->servidor = CNTR_DF_NULO;
     ruta->toma->cliente  = CNTR_DF_NULO;
 
-    return CNTR_HECHO;
+    return ruta->toma;
 }
 
-/* cntr_borra_toma -- Borra toma de la memoria */
+/* cntr_borra_toma */
 
 void
-cntr_borra_toma(t_cntr_ruta *ruta)
+cntr_borra_toma(t_cntr_toma_es *toma)
 {
-    free(ruta->toma);
-    ruta->toma = NULL;
+    free(toma);
+    toma = NULL;
 }
 
-/* cntr_envia_a_toma -- Envía datos por la toma de conexión */
+/* cntr_nueva_estructura_datos_toma */
+
+t_datos_toma *
+cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm)
+{
+    cntr_asigmem(toma->datos, t_datos_toma *,
+                 sizeof(t_datos_toma), "cntr_nueva_estructura_datos_toma");
+    toma->datos->lgtreg = 0;
+    toma->datos->en_uso = 1;
+
+    toma->datos->tsr = strlen((const char *) sr);
+    cntr_asigmem(toma->datos->sdrt, char *,
+                 toma->datos->tsr + 1, "cntr_nueva_estructura_datos_toma");
+    strcpy(toma->datos->sdrt, (const char *) sr);
+
+    cntr_nuevo_tope(tpm, &toma->datos->tope);
+
+    return toma->datos;
+}
+
+/* cntr_envia_a_toma */
 
 int
-cntr_envia_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo)
+cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo)
 {
-    if (send(ruta->toma->cliente, datos, tramo, 0) < 0) {
+    if (send(toma->cliente, datos, tramo, 0) < 0) {
         perror("send");
         return CNTR_ERROR;
     }
     return CNTR_HECHO;
 }
 
-/* cntr_recibe_toma -- Recibe datos por la toma de conexión */
+/* cntr_recibe_toma */
 
 int
-cntr_recibe_toma(t_cntr_ruta *ruta, t_cntr_tope *tope)
+cntr_recibe_toma(t_cntr_toma_es *toma, t_cntr_tope *tope)
 {
-    return cntr_recb_llena_tope(ruta, tope);
+    return cntr_recb_llena_tope(toma, tope);
 }
 
-/* cntr_pon_a_escuchar_toma -- Pone a escuchar la toma 'nula' asociada
-                               a una ruta local */
+/* cntr_pon_a_escuchar_toma */
 
 int
-cntr_pon_a_escuchar_toma(t_cntr_ruta *ruta)
+cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
 {
-    if (   ruta == NULL || ruta->stoma == NULL || ruta->toma == NULL
-        || ruta->toma->servidor != CNTR_DF_NULO
-        || ruta->local == cntr_falso)
+    if (   toma == NULL || toma->infred == NULL
+        || toma->servidor != CNTR_DF_NULO
+        || toma->local == cntr_falso)
         return CNTR_ERROR;
 
     struct addrinfo *rp;
 
-    for (rp = ruta->stoma; rp != NULL; rp = rp->ai_next) {
+    for (rp = toma->infred; rp != NULL; rp = rp->ai_next) {
         /* Crear toma de entrada y guardar df asociado a ella */
-        ruta->toma->servidor = socket(rp->ai_family, rp->ai_socktype,
+        toma->servidor = socket(rp->ai_family, rp->ai_socktype,
                      rp->ai_protocol);
-        if (ruta->toma->servidor == CNTR_DF_NULO)
+        if (toma->servidor == CNTR_DF_NULO)
             continue;
         /* Asociar toma de entrada a una dirección IP y un puerto */
         int activo = 1;
-        setsockopt(ruta->toma->servidor, SOL_SOCKET, SO_REUSEADDR,
+        setsockopt(toma->servidor, SOL_SOCKET, SO_REUSEADDR,
                    &activo, sizeof(activo));
-        if (bind(ruta->toma->servidor, rp->ai_addr, rp->ai_addrlen) == 0)
+        if (bind(toma->servidor, rp->ai_addr, rp->ai_addrlen) == 0)
             break; /* Hecho */
-        close(ruta->toma->servidor);
+        close(toma->servidor);
     }
 
     if (rp == NULL) {
@@ -125,23 +144,22 @@ cntr_pon_a_escuchar_toma(t_cntr_ruta *ruta)
     }
 
     /* Poner toma en modo escucha */
-    if (listen(ruta->toma->servidor, CNTR_MAX_PENDIENTES) < 0) {
+    if (listen(toma->servidor, CNTR_MAX_PENDIENTES) < 0) {
         perror("listen");
         return CNTR_ERROR;
     }
 
-    cntr_borra_stoma(ruta); /* Ya no se necesita */
+    cntr_borra_infred(toma); /* Ya no se necesita */
     return CNTR_HECHO;
 }
 
-/* cntr_trae_primer_cliente_toma -- Extrae la primera conexión de una toma en
-                                    modo de escucha */
+/* cntr_trae_primer_cliente_toma */
 
 int
-cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta, struct sockaddr *cliente)
+cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
 {
-    if (   ruta == NULL || ruta->toma == NULL 
-        || ruta->toma->servidor == CNTR_DF_NULO )
+    if (   toma == NULL 
+        || toma->servidor == CNTR_DF_NULO )
         return CNTR_ERROR;
 
     socklen_t lnt = (socklen_t) sizeof(*cliente);
@@ -152,7 +170,7 @@ cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta, struct sockaddr *cliente)
     FD_ZERO(&lst_df_sondear_lect);
     FD_ZERO(&lst_df_sondear_escr);
     /* Sondear toma de escucha */
-    FD_SET(ruta->toma->servidor, &lst_df_sondear_lect);
+    FD_SET(toma->servidor, &lst_df_sondear_lect);
 
     while (1) {
         /* Parar hasta que llegue evento a una o más tomas activas */
@@ -162,11 +180,11 @@ cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta, struct sockaddr *cliente)
             return CNTR_ERROR;
         }
         /* Atender tomas con eventos de entrada pendientes */
-        if (FD_ISSET(ruta->toma->servidor, &lst_df_sondear_lect)) {
+        if (FD_ISSET(toma->servidor, &lst_df_sondear_lect)) {
             /* Extraer primera conexión de la cola de conexiones */
-            ruta->toma->cliente = accept(ruta->toma->servidor, cliente, &lnt);
+            toma->cliente = accept(toma->servidor, cliente, &lnt);
             /* ¿Es cliente? */
-            if (ruta->toma->cliente < 0) {
+            if (toma->cliente < 0) {
                 perror("accept");
                 return CNTR_ERROR;
             }
@@ -174,11 +192,11 @@ cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta, struct sockaddr *cliente)
 sondea_salida:
             FD_ZERO(&lst_df_sondear_lect);
             FD_ZERO(&lst_df_sondear_escr);
-            FD_SET(ruta->toma->cliente, &lst_df_sondear_lect);
-            FD_SET(ruta->toma->cliente, &lst_df_sondear_escr);
+            FD_SET(toma->cliente, &lst_df_sondear_lect);
+            FD_SET(toma->cliente, &lst_df_sondear_escr);
         } else {
-            if (   FD_ISSET(ruta->toma->cliente, &lst_df_sondear_lect)
-                && FD_ISSET(ruta->toma->cliente, &lst_df_sondear_escr))
+            if (   FD_ISSET(toma->cliente, &lst_df_sondear_lect)
+                && FD_ISSET(toma->cliente, &lst_df_sondear_escr))
                 break;
             else
                 goto sondea_salida;
@@ -187,22 +205,21 @@ sondea_salida:
     return CNTR_HECHO;
 }
 
-/* cntr_cierra_toma -- Cierra toma especificada en 'opcion' y de la manera
-                       en que, también allí, se especifique */
+/* cntr_cierra_toma */
 
 int 
-cntr_cierra_toma(t_cntr_ruta *ruta, t_elector_es opcion)
+cntr_cierra_toma(t_cntr_toma_es *toma, t_elector_es opcion)
 {
-    if (ruta == NULL || ruta->toma == NULL)
+    if (toma == NULL)
         return CNTR_ERROR;
 
     int *toma_es[2] = {NULL, NULL};
 
     if (opcion.es_servidor)
-        toma_es[0] = &ruta->toma->servidor;
+        toma_es[0] = &toma->servidor;
 
     if (opcion.es_cliente)
-        toma_es[1] = &ruta->toma->cliente;
+        toma_es[1] = &toma->cliente;
 
     for (int i = 0; i < 2; i++) {
         if (toma_es[i] == NULL)

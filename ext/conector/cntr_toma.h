@@ -46,9 +46,22 @@ typedef struct cntr_ruta t_cntr_ruta;
 struct cntr_tope;
 typedef struct cntr_tope t_cntr_tope;
 
+/* Para cargar los datos que se envían o reciben de la toma */
+
+typedef struct datos_toma {
+    t_cntr_tope *tope;  /* Tope de datos entre la E/S                 */
+    char        *sdrt;  /* Separador de registro. Variable RS de gawk */
+    size_t      tsr;    /* Tamaño cadena separador de registro        */
+    size_t      lgtreg; /* Tamaño actual del registro                 */
+    int         en_uso;
+} t_datos_toma;
+
 typedef struct cntr_toma_es {
-    int servidor; /* Descriptor servidor en modo escucha   */
-    int cliente;  /* Descriptor cliente (lectura/escritura)*/
+    int             servidor; /* Descriptor servidor en modo escucha       */
+    int             cliente;  /* Descriptor cliente (lectura/escritura)    */
+    t_datos_toma    *datos;   /* Intercesor de datos entre la toma de red  */
+    struct addrinfo *infred;  /* Información de red TCP/IP (API Linux)     */
+    t_ctrn_verdad   local;    /* ¿Toma local?                              */
 } t_cntr_toma_es;
 
 typedef struct elector_es {
@@ -57,36 +70,66 @@ typedef struct elector_es {
     unsigned int forzar      : 1;
 } t_elector_es;
 
-/* cntr_nueva_toma -- Crea nueva toma 'nula' de E/S para una ruta */
+/* cntr_nueva_toma --
+ *
+ * Crea nueva toma 'nula' de E/S para una ruta
+ */
 
-int cntr_nueva_toma(t_cntr_ruta *ruta);
+t_cntr_toma_es *
+cntr_nueva_toma(t_cntr_ruta *ruta);
 
-/* cntr_borra_toma -- Borra toma de la memoria */
+/* cntr_borra_toma --
+ *
+ * Borra toma de la memoria
+ */
 
-void cntr_borra_toma(t_cntr_ruta *ruta);
+void
+cntr_borra_toma(t_cntr_toma_es *toma);
 
-/* cntr_envia_toma -- Envía datos por la toma de conexión */
+/* cntr_nueva_estructura_datos_toma */
 
-int cntr_envia_toma(t_cntr_ruta *ruta, const void *datos, size_t tramo);
+t_datos_toma *
+cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
 
-/* cntr_recibe_toma -- Recibe datos por la toma de conexión */
+/* cntr_envia_toma --
+ *
+ * Envía datos por la toma de conexión
+ */
 
-int cntr_recibe_toma(t_cntr_ruta *ruta, t_cntr_tope *tope);
+int
+cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo);
 
-/* cntr_pon_a_escuchar_toma -- Pone a escuchar la toma 'nula' asociada
-                               a una ruta local */
+/* cntr_recibe_toma --
+ *
+ * Recibe datos por la toma de conexión
+ */
 
-int cntr_pon_a_escuchar_toma(t_cntr_ruta *ruta);
+int
+cntr_recibe_toma(t_cntr_toma_es *toma, t_cntr_tope *tope);
 
-/* cntr_trae_primer_cliente_toma -- Extrae la primera conexión de una toma en
-                                    modo de escucha */
+/* cntr_pon_a_escuchar_toma --
+ *
+ * Pone a escuchar la toma asociada a una ruta local
+ */
 
-int cntr_trae_primer_cliente_toma(t_cntr_ruta *ruta,
-                                  struct sockaddr *cliente);
+int
+cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma);
 
-/* cntr_cierra_toma -- Cierra toma especificada en 'opcion' y de la manera
-                       en que, también allí, se especifique */
+/* cntr_trae_primer_cliente_toma --
+ *
+ * Extrae la primera conexión de una toma en modo de escucha
+ */
 
-int cntr_cierra_toma(t_cntr_ruta *ruta, t_elector_es opcion);
+int
+cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma,
+                              struct sockaddr *cliente);
+
+/* cntr_cierra_toma --
+ *
+ * Cierra toma de una manera específica ya sea cliente o servidor (opcion)
+ */
+
+int
+cntr_cierra_toma(t_cntr_toma_es *toma, t_elector_es opcion);
 
 #endif /* TOMA_H */
