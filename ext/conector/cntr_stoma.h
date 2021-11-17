@@ -38,13 +38,18 @@
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
-/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la rura y la marca 
-                       adecuadamente si es un nodo local */
+/* cntr_nueva_infred --
+ *
+ * Crea estructura addrinfo dentro de la rura y la marca adecuadamente
+ * si es un nodo local
+ */
 
-int cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta);
+int cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma);
 
-/* cntr_borra_stoma -- Libera memoria ocupada por estructura addrinfo */
+/* cntr_borra_infred --
+ * Libera memoria ocupada por estructura addrinfo
+ */
 
-void cntr_borra_stoma(t_cntr_ruta *ruta);
+void cntr_borra_infred(t_cntr_toma_es *toma);
 
 #endif /* STOMA_H */

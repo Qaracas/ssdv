@@ -40,10 +40,14 @@
 #include <netdb.h>
 
 #include "cntr_defcom.h"
-#include "cntr_ruta.h"
+#include "cntr_ruta.h" /* Borrar */
+#include "cntr_toma.h"
 #include "cntr_stoma.h"
 
-/* es_dirip -- Modifica criterios evitando a getaddrinfo() resolver nombre */
+/* es_dirip --
+ *
+ * Modifica criterios evitando a getaddrinfo() resolver nombre
+ */
 
 static void
 es_dirip(char *ip, struct addrinfo *criterios)
@@ -64,19 +68,18 @@ es_dirip(char *ip, struct addrinfo *criterios)
     }
 }
 
-/* cntr_nueva_stoma -- Crea estructura addrinfo dentro de la ruta y la marca 
-                       adecuadamente si es un nodo local */
+/* cntr_nueva_infred */
 
 int
-cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)
+cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma)
 {
-    if (nodo == NULL || puerto == NULL || ruta == NULL)
+    if (nodo == NULL || puerto == NULL || toma == NULL)
         return CNTR_ERROR;
 
     int r;
     struct addrinfo criterios;
 
-    ruta->local = cntr_falso;
+    toma->local = cntr_falso;
 
     /* Criterios para seleccionar las estructuras de tomas IP
      * que 'getaddrinfo()' volcará a la lista 'resultados' */
@@ -86,16 +89,19 @@ cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)
 
     if (strcmp(nodo, "0") == 0) {
         criterios.ai_flags = AI_PASSIVE; /* Dirección IP comodín */
-        if ((r = getaddrinfo(NULL, puerto, &criterios, &ruta->stoma)) != 0)
+        if ((r = getaddrinfo(NULL, puerto, &criterios, &toma->infred)) != 0)
             return CNTR_ERROR;
-        ruta->local = cntr_cierto;
+        toma->local = cntr_cierto;
         return CNTR_HECHO;
     }
 
      /* Evitar a 'getaddrinfo' resolver nombre */
     es_dirip(nodo, &criterios);
-    if ((r = getaddrinfo(nodo, puerto, &criterios, &ruta->stoma)) != 0)
-        return CNTR_ERROR; // Ejecutar 'gai_strerror(r)' para ver error
+    if ((r = getaddrinfo(nodo, puerto, &criterios, &toma->infred)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(r));
+        perror("Error: ");
+        return CNTR_ERROR;
+    }
 
     /* Averiguamos si el nodo es local */
     struct ifaddrs *stomas_locales, *i;
@@ -105,7 +111,7 @@ cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)
         return CNTR_ERROR;
 
     void *resul, *local;
-    j = ruta->stoma;
+    j = toma->infred;
     while (j) {
         if (j->ai_family == AF_INET)
             resul = &((struct sockaddr_in*)j->ai_addr)->sin_addr;
@@ -133,7 +139,7 @@ cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)
                 if (   ntohl(((struct in_addr*)local)->s_addr)
                     == ntohl(((struct in_addr*)resul)->s_addr))
                 {
-                    ruta->local = cntr_cierto;
+                    toma->local = cntr_cierto;
                     goto fin;
                 }
             } else {
@@ -142,7 +148,7 @@ cntr_nueva_stoma(char *nodo, char *puerto, t_cntr_ruta *ruta)
                          ((struct in6_addr*)resul)->s6_addr,
                          sizeof(((struct in6_addr*)resul)->s6_addr))) == 0)
                 {
-                    ruta->local = cntr_cierto;
+                    toma->local = cntr_cierto;
                     goto fin;
                 }
             }
@@ -155,11 +161,11 @@ fin:
     return CNTR_HECHO;
 }
 
-/* cntr_borra_stoma -- Libera memoria ocupada por estructura addrinfo */
+/* cntr_borra_infred */
 
 void
-cntr_borra_stoma(t_cntr_ruta *ruta)
+cntr_borra_infred(t_cntr_toma_es *toma)
 {
-    freeaddrinfo(ruta->stoma);
-    ruta->stoma = NULL;
+    freeaddrinfo(toma->infred);
+    toma->infred = NULL;
 }
