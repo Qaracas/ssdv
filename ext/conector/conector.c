@@ -351,33 +351,28 @@ typedef struct datos_proc_bidireccional {
 
 /* libera_conector -- Libera datos */
 
-static void
-libera_conector(t_datos_conector *dc)
-{
-    /* Evita liberar memoria dos veces */
-    if (dc->en_uso) {
-        dc->en_uso--;
-        return;
-    }
-    cntr_borra_tope(dc->tope);
-    gawk_free(dc->sdrt);
-    gawk_free(dc);
-}
+//static void
+//libera_conector(t_datos_conector *dc)
+//{
+//    /* Evita liberar memoria dos veces */
+//    if (dc->en_uso) {
+//        dc->en_uso--;
+//        return;
+//    }
+//    cntr_borra_tope(dc->tope);
+//    gawk_free(dc->sdrt);
+//    gawk_free(dc);
+//}
 
 /* cierra_toma_entrada -- Cerrar toma de entrada */
 
 static void
 cierra_toma_entrada(awk_input_buf_t *iobuf)
 {
-    t_datos_conector *dc;
     extern t_cntr_ruta *rt;
 
     if (iobuf == NULL)
         return;
-
-    //dc = (t_datos_conector *) iobuf->opaque;
-    dc = (t_datos_conector *) rt->toma->datos;
-    //libera_conector(dc);
 
     /* haz_cierra_toma_srv() hace esto con la toma de datos de escucha */
 
@@ -389,16 +384,8 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
 static int
 cierra_toma_salida(FILE *fp, void *opaque)
 {
-    t_datos_conector *dc;
     extern t_cntr_ruta *rt;
-
-//    if (opaque == NULL)
-//        return EOF;
-
-//    dc = (t_datos_conector *) opaque;
-    dc = (t_datos_conector *) rt->toma->datos;
-
-    //libera_conector(dc);
+    (void) opaque;
 
     t_elector_es opcn;
     opcn.es_servidor = 0;
@@ -474,11 +461,8 @@ conector_recibe_datos(char **out, awk_input_buf_t *iobuf, int *errcode,
     (void) desusado;
 #endif
 
-    //dc = (t_datos_conector *) iobuf->opaque;
-    dc = (t_datos_conector *) rt->toma->datos;
-    //dc->tope->ldatos = 0;
-    //dc->tope->ptrreg = 0;
-    //bzero(dc->tope->datos, dc->tope->max);
+
+    dc = (t_datos_conector *) rt->toma->pila;
 
     if (dc->tope->ldatos == 0) {
 lee_mas:
@@ -499,8 +483,7 @@ lee_mas:
     }
 
     /* Apuntar al siguiente registro (variable RT) */
-    *rt_start = strstr(  (const char*) dc->tope->datos
-                       + dc->tope->ptrreg,
+    *rt_start = strstr((const char*) dc->tope->datos + dc->tope->ptrreg,
                        (const char*) dc->sdrt);
     *rt_len = dc->tsr;
 
@@ -516,8 +499,8 @@ lee_mas:
         goto lee_mas;
     }
 
-    dc->lgtreg =   long_registro(dc->tope->datos
-                 + dc->tope->ptrreg, *rt_start);
+    dc->lgtreg =   long_registro(dc->tope->datos + dc->tope->ptrreg,
+                                 *rt_start);
 
     *out = dc->tope->datos + dc->tope->ptrreg;
 

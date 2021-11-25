@@ -76,19 +76,19 @@ cntr_borra_toma(t_cntr_toma_es *toma)
 t_datos_toma *
 cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm)
 {
-    cntr_asigmem(toma->datos, t_datos_toma *,
+    cntr_asigmem(toma->pila, t_datos_toma *,
                  sizeof(t_datos_toma), "cntr_nueva_estructura_datos_toma");
-    toma->datos->lgtreg = 0;
-    toma->datos->en_uso = 1;
+    toma->pila->lgtreg = 0;
+    toma->pila->en_uso = 1;
 
-    toma->datos->tsr = strlen((const char *) sr);
-    cntr_asigmem(toma->datos->sdrt, char *,
-                 toma->datos->tsr + 1, "cntr_nueva_estructura_datos_toma");
-    strcpy(toma->datos->sdrt, (const char *) sr);
+    toma->pila->tsr = strlen((const char *) sr);
+    cntr_asigmem(toma->pila->sdrt, char *,
+                 toma->pila->tsr + 1, "cntr_nueva_estructura_datos_toma");
+    strcpy(toma->pila->sdrt, (const char *) sr);
 
-    cntr_nuevo_tope(tpm, &toma->datos->tope);
+    cntr_nuevo_tope(tpm, &toma->pila->tope);
 
-    return toma->datos;
+    return toma->pila;
 }
 
 /* cntr_envia_a_toma */

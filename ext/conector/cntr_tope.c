@@ -45,18 +45,18 @@
 /* cntr_nuevo_tope */
 
 int
-cntr_nuevo_tope(size_t max, t_cntr_tope **tope)
+cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope)
 {
     if (tope == NULL)
         return CNTR_ERROR;
     cntr_asigmem(*tope, t_cntr_tope *,
                  sizeof(t_cntr_tope), "cntr_nuevo_tope");
     cntr_asigmem((*tope)->datos, char *,
-                 max, "cntr_nuevo_tope");
-    (*tope)->max = max;
+                 bulto, "cntr_nuevo_tope");
+    (*tope)->bulto = bulto;
     (*tope)->ldatos = 0;
     (*tope)->ptrreg = 0;
-    bzero((*tope)->datos, max);
+    bzero((*tope)->datos, bulto);
     if (*tope == NULL)
         return CNTR_ERROR;
     else
@@ -85,22 +85,22 @@ cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope)
 
     tope->ldatos = recv(toma->cliente,
                         tope->datos + tope->ptrreg,
-                        tope->max - tope->ptrreg, 0);
+                        tope->bulto - tope->ptrreg, 0);
 
     if (tope->ldatos <= 0) {
         if (tope->ptrreg > 0) {
             bzero(tope->datos + tope->ptrreg,
-                  tope->max - tope->ptrreg);
+                  tope->bulto - tope->ptrreg);
             /* Se envía el remanente, al no recibirse ya nada por la toma */
             return CNTR_TOPE_RESTO;
-        }else
+        } else
             return CNTR_TOPE_VACIO;
     }
 
     /* Limpiar el sobrante */
-    if (((size_t)tope->ldatos + tope->ptrreg) < tope->max)
+    if (((size_t)tope->ldatos + tope->ptrreg) < tope->bulto)
         bzero(tope->datos + ((size_t)tope->ldatos + tope->ptrreg),
-              tope->max - ((size_t)tope->ldatos + tope->ptrreg));
+              tope->bulto - ((size_t)tope->ldatos + tope->ptrreg));
 
     tope->ptareg = tope->ptrreg;
     tope->ptrreg = 0;

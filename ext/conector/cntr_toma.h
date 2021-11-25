@@ -59,7 +59,7 @@ typedef struct datos_toma {
 typedef struct cntr_toma_es {
     int             servidor; /* Descriptor servidor en modo escucha       */
     int             cliente;  /* Descriptor cliente (lectura/escritura)    */
-    t_datos_toma    *datos;   /* Intercesor de datos entre la toma de red  */
+    t_datos_toma    *pila;    /* Pila de datos entre el programa y la toma */
     struct addrinfo *infred;  /* Información de red TCP/IP (API Linux)     */
     t_ctrn_verdad   local;    /* ¿Toma local?                              */
 } t_cntr_toma_es;

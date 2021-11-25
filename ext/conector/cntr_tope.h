@@ -42,19 +42,19 @@ struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
 typedef struct cntr_tope {
-    size_t  max;    /* Tamaño máximo del tope                     */
-    ssize_t ldatos; /* Tamaño de los datos almacenado actualmente */
-    char    *datos; /* Tramo de datos que almacena el tope        */
-    int     ptrreg; /* Inicio registro dentro del tope (actual)   */
-    int     ptareg; /* Inicio registro dentro del tope (anterior) */
+    size_t  bulto;  /* Volumen o capacidad del tope */
+    ssize_t ldatos; /* Cantidad datos almacenados   */
+    char    *datos; /* Datos almacenados            */
+    int     ptrreg; /* Inicio registro actual       */
+    int     ptareg; /* Inicio registro anterior     */
 } t_cntr_tope;
 
 /* cntr_nuevo_tope --
  *
- * Crea nuevo tope de tamaño 'max'
+ * Crea nuevo tope de tamaño 'bulto'
  */
 
-int cntr_nuevo_tope(size_t max, t_cntr_tope **tope);
+int cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope);
 
 /* cntr_borra_tope --
  *
