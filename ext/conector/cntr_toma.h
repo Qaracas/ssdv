@@ -49,10 +49,10 @@ typedef struct cntr_tope t_cntr_tope;
 /* Para cargar los datos que se envían o reciben de la toma */
 
 typedef struct datos_toma {
-    t_cntr_tope *tope;  /* Tope de datos entre la E/S                 */
-    char        *sdrt;  /* Separador de registro. Variable RS de gawk */
-    size_t      tsr;    /* Tamaño cadena separador de registro        */
-    size_t      lgtreg; /* Tamaño actual del registro                 */
+    t_cntr_tope *tope;        /* Tope de datos entre la E/S                */
+    char        *sdrt;        /* Separador de registro. Variable RS gawk   */
+    size_t      tsr;          /* Tamaño cadena separador de registro       */
+    size_t      lgtreg;       /* Tamaño actual del registro                */
     int         en_uso;
 } t_datos_toma;
 
@@ -99,13 +99,23 @@ cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
 int
 cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo);
 
-/* cntr_recibe_toma --
+/* cntr_recibe_linea_toma --
  *
- * Recibe datos por la toma de conexión
+ * Recibe línea terminada en RS por la toma de conexión
  */
 
-int
-cntr_recibe_toma(t_cntr_toma_es *toma, t_cntr_tope *tope);
+char *
+cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
+                       int *resul);
+
+/* cntr_recibe_flujo_toma --
+ *
+ * Recibe un flujo contínuo de datos por la toma de conexión
+ */
+
+char *
+cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
+                       int *resul);
 
 /* cntr_pon_a_escuchar_toma --
  *

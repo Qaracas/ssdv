@@ -54,8 +54,6 @@
 #include "cntr_tope.h"
 #include "cntr_serie.h"
 
-#define MAX_EVENTOS        10
-
 static const gawk_api_t *api; /* Conveniencia para usar macros */
 static awk_ext_id_t ext_id;
 static const char *ext_version = "extensión conector: versión 1.0";
@@ -65,11 +63,14 @@ static awk_bool_t (*init_func)(void) = inicia_conector;
 
 int plugin_is_GPL_compatible;
 
-/* Variables globales que mantienen su valor */
+/* Variables global (puntero oculto) */
 
 static t_cntr_ruta *rt;  /* Ruta de conexión en uso */
 
-/* pon_num_en_coleccion -- Añadir elemento numérico a la colección */
+/* pon_num_en_coleccion --
+ *
+ * Añadir elemento numérico a la colección
+ */
 
 static void
 pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
@@ -81,7 +82,10 @@ pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
         make_number(num, &value));
 }
 
-/* pon_txt_en_coleccion -- Añadir elemento textual a la colección */
+/* pon_txt_en_coleccion --
+ * 
+ * Añadir elemento textual a la colección
+ */
 
 static void
 pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
@@ -97,7 +101,10 @@ pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
  * Funciones que proporciona 'conector.c' a GAWK
  */
 
-/* haz_crea_toma -- Crea una toma de datos y escucha en ella */
+/* haz_crea_toma --
+ *
+ * Crea una toma de datos y escucha en ella
+ */
 
 static awk_value_t *
 #ifdef API_AWK_V2
@@ -176,7 +183,10 @@ haz_crea_toma(int nargs, awk_value_t *resultado)
     return make_number(rt->toma->servidor, resultado);
 }
 
-/* haz_mata_toma -- Borra toma de datos de la memoria y de la serie */
+/* haz_mata_toma --
+ *
+ * Borra toma de datos de la memoria y de la serie
+ */
 
 static awk_value_t *
 #ifdef API_AWK_V2
@@ -218,14 +228,17 @@ haz_mata_toma(int nargs, awk_value_t *resultado)
     return make_number(0, resultado);
 }
 
-/* haz_cierra_toma_srv -- Cierra toma de datos local */
+/* haz_acaba_toma_srv --
+ * 
+ * Cierra toma de datos local
+ */
 
 static awk_value_t *
 #ifdef API_AWK_V2
-haz_cierra_toma_srv(int nargs, awk_value_t *resultado,
+haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 #else
-haz_cierra_toma_srv(int nargs, awk_value_t *resultado)
+haz_acaba_toma_srv(int nargs, awk_value_t *resultado)
 #endif
 {
     awk_value_t nombre;
@@ -237,26 +250,26 @@ haz_cierra_toma_srv(int nargs, awk_value_t *resultado)
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
-        lintwarn(ext_id, "cierrasrv: nº de argumentos incorrecto");
+        lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
         return make_number(-1, resultado);
     }
 
-    if (! get_argument(0, AWK_STRING, &nombre)) {   
-        lintwarn(ext_id, "cierrasrv: tipo de argumento incorrecto");
+    if (! get_argument(0, AWK_STRING, &nombre)) {
+        lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
         return make_number(-1, resultado);
     }
 
     const char *nombre_ruta = (const char *) nombre.str_value.str;
 
     if (nombre_ruta == NULL)
-        fatal(ext_id, "cierrasrv: error leyendo nombre de fichero especial");
+        fatal(ext_id, "acabasrv: error leyendo nombre de fichero especial");
 
     if (   rt != NULL
         && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
         rt = cntr_busca_ruta_en_serie(nombre_ruta);
 
     if (rt == NULL) {
-        lintwarn(ext_id, "cierrasrv: toma de datos inexistente");
+        lintwarn(ext_id, "acabasrv: toma de datos inexistente");
         return make_number(-1, resultado);
     }
 
@@ -265,12 +278,68 @@ haz_cierra_toma_srv(int nargs, awk_value_t *resultado)
     opcn.es_cliente  = 0;
     opcn.forzar      = 0;
     if (cntr_cierra_toma(rt->toma, opcn) == CNTR_ERROR)
-        lintwarn(ext_id, "cierrasrv: error cerrando toma");
+        lintwarn(ext_id, "acabasrv: error cerrando toma");
 
     return make_number(0, resultado);
 }
 
-/* haz_trae_primer_cli -- Extrae primera conexión de la cola de conexiones */
+/* haz_acaba_toma_cli --
+ * 
+ * Cierra toma de datos local
+ */
+
+static int
+cierra_toma_salida(FILE *fp, void *opaque);
+
+static awk_value_t *
+#ifdef API_AWK_V2
+haz_acaba_toma_cli(int nargs, awk_value_t *resultado,
+                    struct awk_ext_func *desusado)
+#else
+haz_acaba_toma_cli(int nargs, awk_value_t *resultado)
+#endif
+{
+    awk_value_t nombre;
+    extern t_cntr_ruta *rt;
+
+#ifdef API_AWK_V2
+    (void) desusado;
+#endif
+
+    /* Sólo acepta 1 argumento */
+    if (nargs != 1) {
+        lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
+        return make_number(-1, resultado);
+    }
+
+    if (! get_argument(0, AWK_STRING, &nombre)) {
+        lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
+        return make_number(-1, resultado);
+    }
+
+    const char *nombre_ruta = (const char *) nombre.str_value.str;
+
+    if (nombre_ruta == NULL)
+        fatal(ext_id, "acabasrv: error leyendo nombre de fichero especial");
+
+    if (   rt != NULL
+        && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
+        rt = cntr_busca_ruta_en_serie(nombre_ruta);
+
+    if (rt == NULL) {
+        lintwarn(ext_id, "acabasrv: toma de datos inexistente");
+        return make_number(-1, resultado);
+    }
+
+    cierra_toma_salida(NULL, NULL);
+
+    return make_number(0, resultado);
+}
+
+/* haz_trae_primer_cli --
+ *
+ * Extrae primera conexión de la cola de conexiones
+ */
 
 static awk_value_t *
 #ifdef API_AWK_V2
@@ -297,7 +366,7 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado)
     const char *nombre_ruta = (const char *) valorarg.str_value.str;
 
     if (nombre_ruta == NULL)
-        fatal(ext_id, "cierrasrv: error leyendo nombre de fichero especial");
+        fatal(ext_id, "traeprcli: error leyendo nombre de fichero especial");
 
     rt = cntr_busca_ruta_en_serie(nombre_ruta);
 
@@ -341,30 +410,14 @@ llena_coleccion:
 
 /* Los datos del puntero oculto */
 
-typedef struct datos_proc_bidireccional {
-    t_cntr_tope *tope;  /* Tope de datos entre la E/S                 */
-    char        *sdrt;  /* Separador de registro. Variable RS de gawk */
-    size_t      tsr;    /* Tamaño cadena separador de registro        */
-    size_t      lgtreg; /* Tamaño actual del registro                 */
-    int         en_uso;
-} t_datos_conector;
+// Ver anterior definición de ruta 'rt'
+typedef char * (*recibe_toma)(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
+                              int *resul);
 
-/* libera_conector -- Libera datos */
-
-//static void
-//libera_conector(t_datos_conector *dc)
-//{
-//    /* Evita liberar memoria dos veces */
-//    if (dc->en_uso) {
-//        dc->en_uso--;
-//        return;
-//    }
-//    cntr_borra_tope(dc->tope);
-//    gawk_free(dc->sdrt);
-//    gawk_free(dc);
-//}
-
-/* cierra_toma_entrada -- Cerrar toma de entrada */
+/* cierra_toma_entrada --
+ *
+ * Cerrar toma de entrada
+ */
 
 static void
 cierra_toma_entrada(awk_input_buf_t *iobuf)
@@ -374,12 +427,15 @@ cierra_toma_entrada(awk_input_buf_t *iobuf)
     if (iobuf == NULL)
         return;
 
-    /* haz_cierra_toma_srv() hace esto con la toma de datos de escucha */
+    /* haz_acaba_toma_srv() hace esto con la toma de escucha */
 
     iobuf->fd = INVALID_HANDLE; /* Por ahora es un df ficticio */
 }
 
-/* cierra_toma_salida -- Cerrar toma de salida */
+/* cierra_toma_salida --
+ *
+ * Cerrar toma de salida
+ */
 
 static int
 cierra_toma_salida(FILE *fp, void *opaque)
@@ -394,13 +450,16 @@ cierra_toma_salida(FILE *fp, void *opaque)
     if (cntr_cierra_toma(rt->toma, opcn) == CNTR_ERROR)
         lintwarn(ext_id, "conector: error cerrando toma con cliente");
 
-    /* Se usa la toma_salida en su lugar, pero hay que cerrarlo */
+    /* Se usa cntr_cierra_toma(), pero lo cerramos */
     fclose(fp);
 
     return 0;
 }
 
-/* limpia_toma_salida -- Apagar toma de salida */
+/* limpia_toma_salida --
+ *
+ * Apagar toma de salida
+ */
 
 static int
 limpia_toma_salida(FILE *fp, void *opaque)
@@ -411,7 +470,10 @@ limpia_toma_salida(FILE *fp, void *opaque)
     return 0;
 }
 
-/* maneja_error -- De momento no hacer nada */
+/* maneja_error --
+ *
+ * De momento no hacer nada
+ */
 
 static int
 maneja_error(FILE *fp, void *opaque)
@@ -422,21 +484,10 @@ maneja_error(FILE *fp, void *opaque)
     return 0;
 }
 
-/* long_registro -- Calcula distancia entre dos posiciones de memoria */
-
-static int
-long_registro(char *ini, char *fin)
-{
-    int c = 0;
-    char *i = ini;
-
-    while (i++ != fin)
-        c++;
-
-    return c;
-}
-
-/* conector_recibe_datos -- Lee un registro cada vez */
+/* conector_recibe_datos --
+ *
+ * Lee un registro cada vez
+ */
 
 static int
 #ifdef API_AWK_V2
@@ -451,9 +502,8 @@ conector_recibe_datos(char **out, awk_input_buf_t *iobuf, int *errcode,
     if (out == NULL || iobuf == NULL)
         return EOF;
 
-    int recbt;
-    t_datos_conector *dc;
     extern t_cntr_ruta *rt;
+    int resul;
 
     (void) errcode;
 
@@ -461,53 +511,20 @@ conector_recibe_datos(char **out, awk_input_buf_t *iobuf, int *errcode,
     (void) desusado;
 #endif
 
+    recibe_toma recibe = &cntr_recibe_linea_toma;
 
-    dc = (t_datos_conector *) rt->toma->pila;
+    *out = (*recibe)(rt->toma, rt_start, rt_len, &resul);
 
-    if (dc->tope->ldatos == 0) {
-lee_mas:
-        recbt = cntr_recibe_toma(rt->toma, dc->tope);
-        switch (recbt) {
-            case CNTR_TOPE_RESTO:
-                *out = dc->tope->datos;
-                return dc->tope->ptrreg;
-            case CNTR_TOPE_VACIO:
-                return EOF;
-            case CNTR_ERROR:
-                fatal(ext_id,
-                    "conector_recibe_datos: error llenando de entrada");
-        }
-    } else {
-        /* Apunta al siguiente registro del tope */
-        dc->tope->ptrreg += dc->lgtreg + (int) dc->tsr;
-    }
+    if (resul == CNTR_ERROR)
+        fatal(ext_id, "conector_recibe_datos: error leyendo de la toma");
 
-    /* Apuntar al siguiente registro (variable RT) */
-    *rt_start = strstr((const char*) dc->tope->datos + dc->tope->ptrreg,
-                       (const char*) dc->sdrt);
-    *rt_len = dc->tsr;
-
-    if (*rt_start == NULL) {
-        *rt_len = 0;
-        /* Copia lo que nos queda por leer al inicio del tope */
-        memcpy(dc->tope->datos,
-               (const void *) (dc->tope->datos + dc->tope->ptrreg),
-                 (dc->tope->ldatos + dc->tope->ptareg)
-               - dc->tope->ptrreg);
-        dc->tope->ptrreg =   (dc->tope->ldatos + dc->tope->ptareg)
-                           - dc->tope->ptrreg;
-        goto lee_mas;
-    }
-
-    dc->lgtreg =   long_registro(dc->tope->datos + dc->tope->ptrreg,
-                                 *rt_start);
-
-    *out = dc->tope->datos + dc->tope->ptrreg;
-
-    return dc->lgtreg;
+    return rt->toma->pila->lgtreg;
 }
 
-/* conector_envia_datos -- Envía respuesta a solicitud del cliente */
+/* conector_envia_datos --
+ *
+ * Envía respuesta a solicitud del cliente
+ */
 
 static size_t
 conector_envia_datos(const void *buf, size_t size, size_t count, FILE *fp,
@@ -525,7 +542,10 @@ conector_envia_datos(const void *buf, size_t size, size_t count, FILE *fp,
     return (size * count);
 }
 
-/* conector_puede_aceptar_fichero -- Decide si aceptamos fichero */
+/* conector_puede_aceptar_fichero --
+ *
+ * Decide si aceptamos fichero
+ */
 
 static awk_bool_t
 conector_puede_aceptar_fichero(const char *name)
@@ -539,7 +559,10 @@ conector_puede_aceptar_fichero(const char *name)
                 || (rt = cntr_busca_ruta_en_serie(name)) != NULL));
 }
 
-/* conector_tomar_control_de -- Prepara procesador bidireccional */
+/* conector_tomar_control_de --
+ *
+ * Prepara procesador bidireccional
+ */
 
 static awk_bool_t
 conector_tomar_control_de(const char *name, awk_input_buf_t *inbuf,
@@ -576,7 +599,10 @@ static awk_two_way_processor_t conector_es = {
     NULL
 };
 
-/* inicia_conector -- Incicia conector bidireccional */
+/* inicia_conector --
+ *
+ * Incicia conector bidireccional
+ */
 
 static awk_bool_t
 inicia_conector()
@@ -585,20 +611,23 @@ inicia_conector()
     return awk_true;
 }
 
+/* Define nuevos comantos para GAWK */
+
 #ifdef API_AWK_V2
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma",   haz_crea_toma,      1, 1, awk_false, NULL },
-    { "matatoma",   haz_mata_toma,      1, 1, awk_false, NULL },
-    { "cierrasrv",  haz_cierra_toma_srv,    1, 1, awk_false, NULL },
-//    { "cierracli",  haz_cierra_toma_cli,    1, 1, awk_false, NULL },
-    { "traeprcli", haz_trae_primer_cli, 2, 1, awk_false, NULL },
+    { "creatoma", haz_crea_toma,       1, 1, awk_false, NULL },
+    { "matatoma", haz_mata_toma,       1, 1, awk_false, NULL },
+    { "acabasrv", haz_acaba_toma_srv,  1, 1, awk_false, NULL },
+    { "acabacli", haz_acaba_toma_cli,  1, 1, awk_false, NULL },
+    { "traepcli", haz_trae_primer_cli, 2, 1, awk_false, NULL },
 };
 #else
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma",  haz_crea_toma,       1 },
-    { "matatoma",  haz_mata_toma,       1 },
-    { "cierrasrv", haz_cierra_toma_srv, 1 },
-    { "traeprcli", haz_trae_primer_cli, 2 },
+    { "creatoma", haz_crea_toma,       1 },
+    { "matatoma", haz_mata_toma,       1 },
+    { "acabasrv", haz_acaba_toma_srv,  1 },
+    { "acabacli", haz_acaba_toma_cli,  1 },
+    { "traepcli", haz_trae_primer_cli, 2 },
 };
 #endif
 

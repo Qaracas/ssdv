@@ -44,19 +44,16 @@ BEGIN {
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
-        traeprcli(canalTcpIP, cli);
+        traepcli(canalTcpIP, cli);
         print "[" PROCINFO["pid"] "]",
             "Padre: recibida petición desde " \
             cli["dir"] ", puerto " cli["pto"] ".";
 
         if ((pid = fork()) == 0) {
             # Rama hija
-            #cierrasrv(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
-            #matatoma(canalTcpIP);
             break;
         } else {
             # Rama padre
-            close(canalTcpIP); # Ojo! el cierre afecta a ambos ramales
         }
     }
 
@@ -69,7 +66,10 @@ BEGIN {
 
     print "HTTP/1.1 200 Vale" |& canalTcpIP;
     print "Connection: close" |& canalTcpIP;
-    close(canalTcpIP);
+
+    acabacli(canalTcpIP);
+    acabasrv(canalTcpIP);
+    matatoma(canalTcpIP);
 
     exit 0;
 }

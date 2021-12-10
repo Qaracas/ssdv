@@ -105,10 +105,76 @@ cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo)
 
 /* cntr_recibe_toma */
 
-int
-cntr_recibe_toma(t_cntr_toma_es *toma, t_cntr_tope *tope)
+char *
+cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
+                       int *resul)
 {
-    return cntr_recb_llena_tope(toma, tope);
+    int recbt;
+    t_cntr_tope *tope = toma->pila->tope;
+
+    if (tope->ldatos == 0) {
+        recbt = cntr_rcbl_llena_tope(toma);
+        switch (recbt) {
+            case CNTR_TOPE_RESTO:
+                return tope->datos;
+            case CNTR_TOPE_VACIO:
+                return NULL;
+            case CNTR_ERROR:
+                *resul = CNTR_ERROR;
+        }
+    } else {
+        /* Apunta al siguiente registro del tope */
+        tope->ptrreg += toma->pila->lgtreg + toma->pila->tsr;
+    }
+
+    /* Apuntar al siguiente separador de registro */
+    *sdrt = strstr((const char*) tope->datos + tope->ptrreg,
+                       (const char*) toma->pila->sdrt);
+    *tsr = toma->pila->tsr;
+
+    if (*sdrt == NULL) {
+        if (tope->ptrreg == 0) {
+            *resul = CNTR_ERROR;
+            return NULL;
+        }
+        *tsr = 0;
+        /* Copia lo que nos queda por leer al inicio del tope */
+        memcpy(tope->datos,
+               (const void *) (tope->datos + tope->ptrreg),
+               (tope->ldatos + tope->ptareg) - tope->ptrreg);
+        tope->ptrreg = (tope->ldatos + tope->ptareg) - tope->ptrreg;
+        tope->ldatos = 0;
+        return cntr_recibe_linea_toma(toma, sdrt, tsr, resul);
+    }
+
+    /* Tamaño del registro */
+    toma->pila->lgtreg = *sdrt - (tope->datos + tope->ptrreg);
+
+    return tope->datos + tope->ptrreg;
+}
+
+/* cntr_recibe_flujo_toma */
+
+char *
+cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
+                       int *resul)
+{
+    int recbt;
+    t_cntr_tope *tope = toma->pila->tope;
+
+    (void) sdrt;
+    (void) tsr;
+
+    recbt = cntr_rcbf_llena_tope(toma);
+
+    if (recbt == CNTR_ERROR) {
+        *resul = CNTR_ERROR;
+        return NULL;
+    } else if (recbt == CNTR_TOPE_VACIO) {
+        return NULL;
+    }
+
+    return tope->datos;
 }
 
 /* cntr_pon_a_escuchar_toma */

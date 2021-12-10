@@ -46,7 +46,7 @@ BEGIN {
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Esperando petición...";
-        traeprcli(canalTcpIP, cli);
+        traepcli(canalTcpIP, cli);
         print "[" PROCINFO["pid"] "]",
             "Petición recibida desde " \
             cli["dir"] ", puerto " cli["pto"] ".";
@@ -69,13 +69,15 @@ BEGIN {
         print "HTTP/1.1 200 Vale" |& canalTcpIP;
         print "> Connection: close"
         print "Connection: close" |& canalTcpIP;
-        close(canalTcpIP);
+
+        acabacli(canalTcpIP);
 
         if (salir)
             break;
     }
 
-    cierrasrv(canalTcpIP);
+    acabasrv(canalTcpIP);
     matatoma(canalTcpIP);
+
     exit 0;
 }

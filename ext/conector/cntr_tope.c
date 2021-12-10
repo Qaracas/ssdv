@@ -74,11 +74,13 @@ cntr_borra_tope(t_cntr_tope *tope)
     tope = NULL;
 }
 
-/* cntr_recb_llena_tope */
+/* cntr_rcbl_llena_tope */
 
 int
-cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope)
+cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
 {
+    t_cntr_tope *tope = toma->pila->tope;
+
     if (   toma == NULL || tope == NULL
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
@@ -87,11 +89,14 @@ cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope)
                         tope->datos + tope->ptrreg,
                         tope->bulto - tope->ptrreg, 0);
 
-    if (tope->ldatos <= 0) {
+    if (tope->ldatos < 0) {
+        perror("recv");
+        return CNTR_ERROR;
+    } else if (tope->ldatos == 0) {
         if (tope->ptrreg > 0) {
             bzero(tope->datos + tope->ptrreg,
                   tope->bulto - tope->ptrreg);
-            /* Se envía el remanente, al no recibirse ya nada por la toma */
+            /* No hay datos en la toma, y se envía el remanente */
             return CNTR_TOPE_RESTO;
         } else
             return CNTR_TOPE_VACIO;
@@ -99,11 +104,34 @@ cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope)
 
     /* Limpiar el sobrante */
     if (((size_t)tope->ldatos + tope->ptrreg) < tope->bulto)
-        bzero(tope->datos + ((size_t)tope->ldatos + tope->ptrreg),
-              tope->bulto - ((size_t)tope->ldatos + tope->ptrreg));
+        bzero(tope->datos + (tope->ldatos + tope->ptrreg),
+              tope->bulto - (tope->ldatos + tope->ptrreg));
 
     tope->ptareg = tope->ptrreg;
     tope->ptrreg = 0;
+
+    return CNTR_HECHO;
+}
+
+/* cntr_rcbf_llena_tope */
+
+int
+cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
+{
+    t_cntr_tope *tope = toma->pila->tope;
+
+    if (   toma == NULL || tope == NULL
+        || toma->cliente == CNTR_DF_NULO)
+    return CNTR_ERROR;
+
+    tope->ldatos = recv(toma->cliente, tope->datos, tope->bulto, 0);
+
+    if (tope->ldatos < 0) {
+        perror("recv");
+        return CNTR_ERROR;
+    } else if (tope->ldatos == 0) {
+        return CNTR_TOPE_VACIO;
+    }
 
     return CNTR_HECHO;
 }

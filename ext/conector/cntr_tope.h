@@ -42,11 +42,11 @@ struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
 typedef struct cntr_tope {
-    size_t  bulto;  /* Volumen o capacidad del tope */
-    ssize_t ldatos; /* Cantidad datos almacenados   */
-    char    *datos; /* Datos almacenados            */
-    int     ptrreg; /* Inicio registro actual       */
-    int     ptareg; /* Inicio registro anterior     */
+    size_t  bulto; /* Volumen o capacidad del tope */
+    int    ldatos; /* Cantidad datos almacenados   */
+    char   *datos; /* Datos almacenados            */
+    int    ptrreg; /* Inicio registro actual       */
+    int    ptareg; /* Inicio registro anterior     */
 } t_cntr_tope;
 
 /* cntr_nuevo_tope --
@@ -63,11 +63,18 @@ int cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope);
 
 void cntr_borra_tope(t_cntr_tope *tope);
 
-/* cntr_recb_llena_tope --
+/* cntr_rcbl_llena_tope --
  *
- * Llenar tope con los datos recibidos de la toma asociada a una ruta
+ * Llenar hasta el tope con líneas terminadas en RS
  */
 
-int cntr_recb_llena_tope(t_cntr_toma_es *toma, t_cntr_tope *tope);
+int cntr_rcbl_llena_tope(t_cntr_toma_es *toma);
+
+/* cntr_rcbf_llena_tope --
+ *
+ * Llenar hasta el tope con flujo contínuo de datos
+ */
+
+int cntr_rcbf_llena_tope(t_cntr_toma_es *toma);
 
 #endif /* TOPE_H */
