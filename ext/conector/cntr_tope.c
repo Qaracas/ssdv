@@ -49,14 +49,23 @@ cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope)
 {
     if (tope == NULL)
         return CNTR_ERROR;
+
+    size_t v_bulto;
+
+    if (bulto == 0)
+        v_bulto = CNTR_TOPE_MAX_X_DEF;
+    else
+        v_bulto = bulto;
+
     cntr_asigmem(*tope, t_cntr_tope *,
                  sizeof(t_cntr_tope), "cntr_nuevo_tope");
     cntr_asigmem((*tope)->datos, char *,
-                 bulto, "cntr_nuevo_tope");
-    (*tope)->bulto = bulto;
+                 v_bulto, "cntr_nuevo_tope");
+    (*tope)->bulto = v_bulto;
     (*tope)->ldatos = 0;
     (*tope)->ptrreg = 0;
-    bzero((*tope)->datos, bulto);
+    bzero((*tope)->datos, v_bulto);
+
     if (*tope == NULL)
         return CNTR_ERROR;
     else

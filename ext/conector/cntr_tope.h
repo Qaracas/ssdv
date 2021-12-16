@@ -38,6 +38,8 @@
 #define CNTR_TOPE_VACIO (-2)
 #define CNTR_TOPE_RESTO (-3)
 
+#define CNTR_TOPE_MAX_X_DEF 1024
+
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
