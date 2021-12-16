@@ -36,7 +36,7 @@
 
 BEGIN {
     RS = ORS = "\r\n";
-    TPM = 32;
+    TPM = 0;
 
     canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
@@ -47,8 +47,7 @@ BEGIN {
     while (1) {
         print "[" PROCINFO["pid"] "]", "Esperando petición...";
         traepcli(canalTcpIP, cli);
-        print "[" PROCINFO["pid"] "]",
-            "Petición recibida desde " \
+        print "[" PROCINFO["pid"] "]", "Petición recibida desde " \
             cli["dir"] ", puerto " cli["pto"] ".";
 
         # Procesar petición

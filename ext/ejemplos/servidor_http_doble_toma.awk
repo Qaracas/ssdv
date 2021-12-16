@@ -37,7 +37,7 @@
 
 BEGIN {
     RS = ORS = "\r\n";
-    TPM = 32;
+    TPM = 0;
 
     ruta1 = "/ired/tcp/localhost/" ARGV[1] "/0/0";
     ruta2 = "/ired/tcp/localhost/" ARGV[2] "/0/0";
@@ -71,7 +71,7 @@ function bucle(canal, puerto,    cli, salir)
         # Procesar petición
         salir = 0;
         while ((canal |& getline) > 0) {
-            print "[" PROCINFO["pid"] "]", $0;
+            print "[" PROCINFO["pid"] "] <", $0;
             if ($1 == "GET" && $2 == "/salir")
                 salir = 1;
             if (length($0) == 0)

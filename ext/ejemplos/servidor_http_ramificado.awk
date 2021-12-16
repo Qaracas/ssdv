@@ -37,7 +37,7 @@
 
 BEGIN {
     RS = ORS = "\r\n";
-    TPM = 32;
+    TPM = 0;
 
     canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
@@ -45,21 +45,22 @@ BEGIN {
     while (1) {
         print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
         traepcli(canalTcpIP, cli);
-        print "[" PROCINFO["pid"] "]",
-            "Padre: recibida petición desde " \
+        print "[" PROCINFO["pid"] "]", "Padre: recibida petición desde " \
             cli["dir"] ", puerto " cli["pto"] ".";
 
         if ((pid = fork()) == 0) {
             # Rama hija
+            acabasrv(canalTcpIP);
             break;
-        } else {
-            # Rama padre
         }
+
+        # Continúa rama padre
+        #acabacli(canalTcpIP);
     }
 
     print "[" PROCINFO["pid"] "]", "Hijo: la atiendo y salgo.";
     while ((canalTcpIP |& getline) > 0) {
-        print "[" PROCINFO["pid"] "]", $0;
+        print "[" PROCINFO["pid"] "] <", $0;
         if (length($0) == 0)
             break;
     }
@@ -68,7 +69,6 @@ BEGIN {
     print "Connection: close" |& canalTcpIP;
 
     acabacli(canalTcpIP);
-    acabasrv(canalTcpIP);
     matatoma(canalTcpIP);
 
     exit 0;
