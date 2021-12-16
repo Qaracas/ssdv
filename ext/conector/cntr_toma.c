@@ -32,6 +32,9 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
+#include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -94,9 +97,9 @@ cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm)
 /* cntr_envia_a_toma */
 
 int
-cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo)
+cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t bulto)
 {
-    if (send(toma->cliente, datos, tramo, 0) < 0) {
+    if (send(toma->cliente, datos, bulto, 0) < 0) {
         perror("send");
         return CNTR_ERROR;
     }
@@ -107,12 +110,13 @@ cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo)
 
 char *
 cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       int *resul)
+                       t_cntr_resultado **resul)
 {
     int recbt;
     t_cntr_tope *tope = toma->pila->tope;
 
     if (tope->ldatos == 0) {
+        errno = 0;
         recbt = cntr_rcbl_llena_tope(toma);
         switch (recbt) {
             case CNTR_TOPE_RESTO:
@@ -120,7 +124,9 @@ cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
             case CNTR_TOPE_VACIO:
                 return NULL;
             case CNTR_ERROR:
-                *resul = CNTR_ERROR;
+                *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
+                                              "error leyendo toma");
+                break;
         }
     } else {
         /* Apunta al siguiente registro del tope */
@@ -134,7 +140,8 @@ cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
 
     if (*sdrt == NULL) {
         if (tope->ptrreg == 0) {
-            *resul = CNTR_ERROR;
+            *resul = cntr_nuevo_resultado(0, CNTR_ERROR,
+                                          "desbordamiento de pila");
             return NULL;
         }
         *tsr = 0;
@@ -157,22 +164,28 @@ cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
 
 char *
 cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       int *resul)
+                       t_cntr_resultado **resul)
 {
     int recbt;
     t_cntr_tope *tope = toma->pila->tope;
 
-    (void) sdrt;
-    (void) tsr;
-
+    errno = 0;
     recbt = cntr_rcbf_llena_tope(toma);
 
     if (recbt == CNTR_ERROR) {
-        *resul = CNTR_ERROR;
+        *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
+                              "error leyendo toma");
         return NULL;
     } else if (recbt == CNTR_TOPE_VACIO) {
         return NULL;
     }
+
+    /* Tamaño del registro */
+    toma->pila->lgtreg = tope->ldatos;
+
+    /* Variable RT no tiene sentido leyendo flujos */
+    *sdrt = NULL;
+    *tsr = 0;
 
     return tope->datos;
 }
@@ -287,7 +300,7 @@ cntr_cierra_toma(t_cntr_toma_es *toma, t_elector_es opcion)
     if (opcion.es_cliente)
         toma_es[1] = &toma->cliente;
 
-    for (int i = 0; i < 2; i++) {
+    for (long unsigned int i = 0; i < cntr_ltd(toma_es); i++) {
         if (toma_es[i] == NULL)
             continue;
         if (*toma_es[i] != CNTR_DF_NULO) {

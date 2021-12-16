@@ -97,7 +97,7 @@ cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
  */
 
 int
-cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo);
+cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t bulto);
 
 /* cntr_recibe_linea_toma --
  *
@@ -106,7 +106,7 @@ cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t tramo);
 
 char *
 cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       int *resul);
+                       t_cntr_resultado **resul);
 
 /* cntr_recibe_flujo_toma --
  *
@@ -115,7 +115,7 @@ cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
 
 char *
 cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       int *resul);
+                       t_cntr_resultado **resul);
 
 /* cntr_pon_a_escuchar_toma --
  *
