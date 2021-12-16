@@ -32,43 +32,32 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-#ifndef DEFCOM_H
-#define DEFCOM_H
+#include "cntr_defcom.h"
 
-#define CNTR_HECHO   (0)
-#define CNTR_ERROR   (-1)
-#define CNTR_DF_NULO (-1)
-
-#define cntr_ltd(x) (sizeof(x) / sizeof((x)[0]))
-
-#define cntr_asigmem(puntero, tipo, cabida, mensaje) \
-    do { \
-        if ((puntero = (tipo) malloc(cabida)) == 0) \
-            printf("%s: fallo reservando %d octetos de memoria", \
-                   mensaje, (int)cabida); \
-    } while(0)
-
-typedef enum cntr_verdad {
-    cntr_falso = 0,
-    cntr_cierto
-} t_ctrn_verdad;
-
-typedef struct cntr_resultado {
-    int cntr_errno;      /* Código de error guardado en errno (errno.h)     */
-    char *cntr_strerror; /* Texto devuelto por strerror(errno)              */
-    int codigo;          /* Código con el resultado de una función          */
-    char *texto_error;   /* Descripción del error si resultado = CNTR_ERROR */
-} t_cntr_resultado;
-
-/* cntr_nuevo_resultado --
- *
- * Crea nuevo resultado relativo a la ejecución de una función
- */
+/* cntr_nuevo_resultado */
 
 t_cntr_resultado
-*cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error);
+*cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error)
+{
+    if (codigo == CNTR_ERROR && texto_error == NULL)
+        return NULL;
 
+    t_cntr_resultado *resultado;
 
-#endif /* DEFCOM_H */
+    cntr_asigmem(resultado, t_cntr_resultado *,
+                 sizeof(t_cntr_resultado), "cntr_nuevo_resultado");
+
+    if (cntr_errno != 0) {
+        resultado->cntr_errno = cntr_errno;
+        resultado->cntr_strerror = strerror(cntr_errno);
+    }
+
+    resultado->codigo = codigo;
+    if (texto_error != NULL)
+        resultado->texto_error = texto_error;
+
+    return resultado;
+}
