@@ -40,9 +40,6 @@ BEGIN {
 
     canalTcpIP = "/ired/tcp/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTcpIP);
-    
-    borrar = "/ired/tcp/localhost/7071/0/0";
-    creatoma(borrar);
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Esperando petición...";
