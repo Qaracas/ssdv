@@ -85,7 +85,7 @@ pon_num_en_coleccion(awk_array_t coleccion, const char *sub, double num)
 }
 
 /* pon_txt_en_coleccion --
- * 
+ *
  * Añadir elemento textual a la colección
  */
 
@@ -174,8 +174,15 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
                           rt->toma) == CNTR_ERROR)
         fatal(ext_id, "creatoma: error extrayendo información de red");
 
-    if (cntr_pon_a_escuchar_toma(rt->toma) == CNTR_ERROR)
-        fatal(ext_id, "creatoma: error poniendo en modo escucha");
+    if (cntr_pon_a_escuchar_toma(rt->toma) == CNTR_ERROR) {
+        char *funcion = "creatoma: ";
+        char *texto = "error poniendo a escuchar nodo ";
+        char msj_error[64] = "";
+        strcat(msj_error, funcion);
+        strcat(msj_error, texto);
+        strcat(msj_error, rt->nodo_local);
+        fatal(ext_id, msj_error);
+    }
 
     if (cntr_pon_ruta_en_serie(rt) == NULL) {
         cntr_borra_ruta(rt);
@@ -225,7 +232,7 @@ haz_mata_toma(int nargs, awk_value_t *resultado,
 }
 
 /* haz_acaba_toma_srv --
- * 
+ *
  * Cierra toma de datos local
  */
 
@@ -274,7 +281,7 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
 }
 
 /* haz_acaba_toma_cli --
- * 
+ *
  * Cierra toma de datos local
  */
 static awk_value_t *
@@ -378,7 +385,7 @@ llena_coleccion:
         }
     }
 
-    /* Devuelve accept(), es decir, el descriptor de fichero de la 
+    /* Devuelve accept(), es decir, el descriptor de fichero de la
        toma de datos recién creada para comunicar con el cliente. */
     return make_number(rt->toma->cliente, resultado);
 }
@@ -471,7 +478,7 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
         strcat(msj_error, funcion);
         fatal(ext_id, strcat(msj_error, resul->texto_error));
     }
-    
+
     return rt->toma->pila->lgtreg;
 }
 

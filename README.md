@@ -29,7 +29,7 @@ $ git clone git://github.com/Qaracas/ssdv.git
 4. Fijar la variable de entorno [AWKLIBPATH](https://www.gnu.org/software/gawk/manual/html_node/AWKLIBPATH-Variable.html)
 
 ```bash
-(ssdv) export AWKLIBPATH=${AWKLIBPATH}:"$(pwd)""/ext"
+(ssdv) export AWKLIBPATH=${AWKLIBPATH}:"$(pwd)""/ext/lib"
 ```
 
 ## Referencias
