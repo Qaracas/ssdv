@@ -174,15 +174,11 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
                           rt->toma) == CNTR_ERROR)
         fatal(ext_id, "creatoma: error extrayendo información de red");
 
-    if (cntr_pon_a_escuchar_toma(rt->toma) == CNTR_ERROR) {
-        char *funcion = "creatoma: ";
-        char *texto = "error poniendo a escuchar nodo ";
-        char msj_error[64] = "";
-        strcat(msj_error, funcion);
-        strcat(msj_error, texto);
-        strcat(msj_error, rt->nodo_local);
-        fatal(ext_id, msj_error);
-    }
+    if (cntr_pon_a_escuchar_toma(rt->toma) == CNTR_ERROR)
+        fatal(ext_id,
+              cntr_msj_error("%s %s",
+                             "creatoma: error poniendo a escuchar nodo",
+                             rt->nodo_local));
 
     if (cntr_pon_ruta_en_serie(rt) == NULL) {
         cntr_borra_ruta(rt);
@@ -473,10 +469,10 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
     if (resul != NULL && resul->codigo == CNTR_ERROR)
     {
         *errcode = resul->cntr_errno;
-        char *funcion = "conector_recibe_datos: ";
-        char msj_error[64] = "";
-        strcat(msj_error, funcion);
-        fatal(ext_id, strcat(msj_error, resul->texto_error));
+        update_ERRNO_int(*errcode);
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "conector_recibe_datos:",
+                                     resul->texto_error));
     }
 
     return rt->toma->pila->lgtreg;

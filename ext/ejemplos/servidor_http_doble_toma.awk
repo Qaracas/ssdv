@@ -36,7 +36,13 @@
 @load "fork";
 
 BEGIN {
+    # HTTP/1.1 define la secuencia <retorno de carro> \r <salto de línea> \n
+    # como delimitador para todos los elementos, excepto en el cuerpo del
+    # mensaje.
     RS = ORS = "\r\n";
+
+    # Si el tope máximo (TMP) es 0 leeremos datos hasta RS, si es mayor que
+    # cero leeremos una cantidad TPM de 'bytes' cada vez.
     TPM = 0;
 
     ruta1 = "/ired/tcp/localhost/" ARGV[1] "/0/0";

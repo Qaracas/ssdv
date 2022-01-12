@@ -174,7 +174,7 @@ cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
 
     if (recbt == CNTR_ERROR) {
         *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                              "error leyendo toma");
+                                      "error leyendo toma");
         return NULL;
     } else if (recbt == CNTR_TOPE_VACIO) {
         return NULL;

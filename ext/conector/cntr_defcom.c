@@ -34,6 +34,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "cntr_defcom.h"
 
@@ -60,4 +61,38 @@ t_cntr_resultado
         resultado->texto_error = texto_error;
 
     return resultado;
+}
+
+/* cntr_msj_error */
+
+char
+*cntr_msj_error(const char *desc, ...)
+{
+    /* Variable para almacenar la lista de argumentos */
+    va_list lista_args;
+    char *ds;
+    char msj_error[128] = "";
+
+    va_start(lista_args, desc);
+
+    while (*desc) {
+        switch (*desc++) {
+        case '%':   /* Prefijo texto */
+            if (*desc++ == 's') {
+                ds = va_arg(lista_args, char *);
+                strcat(msj_error, ds);
+            } else
+                return NULL;
+            break;
+        case ' ':   /* Espacio */
+            strcat(msj_error, " ");
+            break;
+        default:
+            return NULL;
+       }
+    }
+
+    va_end(lista_args);
+
+    return strdup(msj_error);
 }
