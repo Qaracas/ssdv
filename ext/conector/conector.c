@@ -350,10 +350,9 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado,
     if (nombre_ruta == NULL)
         fatal(ext_id, "traepcli: error leyendo nombre de fichero especial");
 
-    rt = cntr_busca_ruta_en_serie(nombre_ruta);
-
-    if (rt == NULL)
-        fatal(ext_id, "traepcli: toma de datos inexistente");
+    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
+        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+            fatal(ext_id, "traepcli: toma de datos inexistente");
 
     struct sockaddr_in cliente;
 
@@ -567,7 +566,7 @@ conector_tomar_control_de(const char *nombre, awk_input_buf_t *tpent,
     }
 
     return awk_true;
- }
+}
 
 /* Registra nuevo procesador bidireccional llamado 'conector' */
 
