@@ -56,7 +56,7 @@ BEGIN {
 
         if ((pid = fork()) == 0) {
             # Rama hija
-            acabasrv(canalTcpIP);
+            #acabasrv(canalTcpIP);
             break;
         }
 
