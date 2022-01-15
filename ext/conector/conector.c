@@ -359,7 +359,7 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado,
     if (cntr_trae_primer_cliente_toma(rt->toma,
                                       (struct sockaddr*) &cliente)
                                       == CNTR_ERROR)
-        fatal(ext_id, "traepcli: error creando toma de datos");
+        fatal(ext_id, "traepcli: error escuchando toma de datos");
 
     /* Anunciar cliente */
     if (nargs == 2) {
