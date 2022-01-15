@@ -237,7 +237,7 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
 int
 cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
 {
-    if (   toma == NULL 
+    if (   toma == NULL
         || toma->servidor == CNTR_DF_NULO )
         return CNTR_ERROR;
 
@@ -252,7 +252,7 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
     FD_SET(toma->servidor, &lst_df_sondear_lect);
 
     while (1) {
-        /* Parar hasta que llegue evento a una o más tomas activas */
+        /* Esperar a que los df estén listos para realizar operaciones de E/S */
         if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
                    NULL, NULL) < 0) {
             perror("select");
@@ -286,7 +286,7 @@ sondea_salida:
 
 /* cntr_cierra_toma */
 
-int 
+int
 cntr_cierra_toma(t_cntr_toma_es *toma, t_elector_es opcion)
 {
     if (toma == NULL)
