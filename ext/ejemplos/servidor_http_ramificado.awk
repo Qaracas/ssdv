@@ -56,12 +56,16 @@ BEGIN {
 
         if ((pid = fork()) == 0) {
             # Rama hija
-            #acabasrv(canalTcpIP);
+
+            # Cerrar toma de escucha en rama hija
+            acabasrv(canalTcpIP);
             break;
         }
 
         # Continúa rama padre
-        #acabacli(canalTcpIP);
+
+        # Cerrar nueva toma E/S con cliente en rama padre
+        acabacli(canalTcpIP);
     }
 
     print "[" PROCINFO["pid"] "]", "Hijo: la atiendo y salgo.";
@@ -75,7 +79,7 @@ BEGIN {
     print "Connection: close" |& canalTcpIP;
 
     acabacli(canalTcpIP);
-    matatoma(canalTcpIP);
+    dtrytoma(canalTcpIP);
 
     exit 0;
 }

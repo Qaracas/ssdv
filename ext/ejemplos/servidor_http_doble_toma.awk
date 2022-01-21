@@ -93,5 +93,5 @@ function bucle(canal, puerto,    cli, salir)
             break;
     }
     acabasrv(canal);
-    matatoma(canal);
+    dtrytoma(canal);
 }

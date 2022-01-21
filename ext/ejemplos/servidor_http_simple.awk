@@ -79,7 +79,7 @@ BEGIN {
     }
 
     acabasrv(canalTcpIP);
-    matatoma(canalTcpIP);
+    dtrytoma(canalTcpIP);
 
     exit 0;
 }
