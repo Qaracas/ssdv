@@ -99,6 +99,45 @@ pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
         make_const_string(txt, strlen(txt), &value));
 }
 
+/* f_interna_acaba_toma --
+ *
+ * Añadir elemento textual a la colección
+ */
+
+static int
+f_interna_acaba_toma(int nargs)
+{
+    awk_value_t nombre;
+    extern t_cntr_ruta *rt;
+
+    /* Sólo acepta 1 argumento */
+    if (nargs != 1) {
+        lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
+        return (1);
+    }
+
+    if (! get_argument(0, AWK_STRING, &nombre)) {
+        lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
+        return (1);
+    }
+
+    const char *nombre_ruta = (const char *) nombre.str_value.str;
+
+    if (nombre_ruta == NULL)
+        fatal(ext_id, "acabasrv: error leyendo nombre de fichero especial");
+
+    if (   rt != NULL
+        && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
+        rt = cntr_busca_ruta_en_serie(nombre_ruta);
+
+    if (rt == NULL) {
+        lintwarn(ext_id, "acabasrv: toma de datos inexistente");
+        return (1);
+    }
+
+    return (0);
+}
+
 /**
  * Funciones que proporciona 'conector.c' a GAWK
  */
@@ -188,14 +227,14 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
     return make_number(rt->toma->servidor, resultado);
 }
 
-/* haz_mata_toma --
+/* haz_destruye_toma --
  *
  * Borra toma de datos de la memoria y de la serie
  */
 
 static awk_value_t *
-haz_mata_toma(int nargs, awk_value_t *resultado,
-              struct awk_ext_func *desusado)
+haz_destruye_toma(int nargs, awk_value_t *resultado,
+                  struct awk_ext_func *desusado)
 {
     (void) desusado;
 
@@ -237,36 +276,11 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
                    struct awk_ext_func *desusado)
 {
     (void) desusado;
-
-    awk_value_t nombre;
-    extern t_cntr_ruta *rt;
-
-    /* Sólo acepta 1 argumento */
-    if (nargs != 1) {
-        lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    if (! get_argument(0, AWK_STRING, &nombre)) {
-        lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    const char *nombre_ruta = (const char *) nombre.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "acabasrv: error leyendo nombre de fichero especial");
-
-    if (   rt != NULL
-        && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
-        rt = cntr_busca_ruta_en_serie(nombre_ruta);
-
-    if (rt == NULL) {
-        lintwarn(ext_id, "acabasrv: toma de datos inexistente");
-        return make_number(-1, resultado);
-    }
-
     t_elector_es opcn;
+
+    if (f_interna_acaba_toma(nargs) != 0)
+        return make_number(-1, resultado);
+
     opcn.es_servidor = 1;
     opcn.es_cliente  = 0;
     opcn.forzar      = 0;
@@ -285,36 +299,11 @@ haz_acaba_toma_cli(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 {
     (void) desusado;
-
-    awk_value_t nombre;
-    extern t_cntr_ruta *rt;
-
-    /* Sólo acepta 1 argumento */
-    if (nargs != 1) {
-        lintwarn(ext_id, "acabacli: nº de argumentos incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    if (! get_argument(0, AWK_STRING, &nombre)) {
-        lintwarn(ext_id, "acabacli: tipo de argumento incorrecto");
-        return make_number(-1, resultado);
-    }
-
-    const char *nombre_ruta = (const char *) nombre.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "acabacli: error leyendo nombre de fichero especial");
-
-    if (   rt != NULL
-        && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
-        rt = cntr_busca_ruta_en_serie(nombre_ruta);
-
-    if (rt == NULL) {
-        lintwarn(ext_id, "acabacli: toma de datos inexistente");
-        return make_number(-1, resultado);
-    }
-
     t_elector_es opcn;
+
+    if (f_interna_acaba_toma(nargs) != 0)
+        return make_number(-1, resultado);
+
     opcn.es_servidor = 0;
     opcn.es_cliente  = 1;
     opcn.forzar      = 0;
@@ -593,7 +582,7 @@ inicia_conector()
 
 static awk_ext_func_t lista_de_funciones[] = {
     { "creatoma", haz_crea_toma,       1, 1, awk_false, NULL },
-    { "matatoma", haz_mata_toma,       1, 1, awk_false, NULL },
+    { "dtrytoma", haz_destruye_toma,   1, 1, awk_false, NULL },
     { "acabasrv", haz_acaba_toma_srv,  1, 1, awk_false, NULL },
     { "acabacli", haz_acaba_toma_cli,  1, 1, awk_false, NULL },
     { "traepcli", haz_trae_primer_cli, 2, 1, awk_false, NULL },
