@@ -304,20 +304,22 @@ cntr_cierra_toma(t_cntr_toma_es *toma, t_elector_es opcion)
         if (toma_es[i] == NULL)
             continue;
         if (*toma_es[i] != CNTR_DF_NULO) {
+            /* Forzar cierre y evitar (TIME_WAIT) */
             if (opcion.forzar) {
-                /* Forzar cierre y evitar (TIME_WAIT) */
                 struct linger so_linger;
                 so_linger.l_onoff  = 1;
                 so_linger.l_linger = 0;
                 setsockopt(*toma_es[i], SOL_SOCKET, SO_LINGER,
                            &so_linger, sizeof(so_linger));
-                goto a_trochemoche;
             }
+            /* Cuando ramificamos hilo de ejecución con fork() esto afecta al
+               padre y al hijo */
+            /*
             if (shutdown(*toma_es[i], SHUT_RDWR) < 0) {
                 perror("shutdown");
                 return CNTR_ERROR;
             }
-a_trochemoche:
+            */
             if (close(*toma_es[i]) < 0) {
                 perror("cierra");
                 return CNTR_ERROR;
