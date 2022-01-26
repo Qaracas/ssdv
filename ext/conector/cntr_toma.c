@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <sys/select.h>
 #include <string.h>
 
 #include "cntr_defcom.h"
@@ -48,6 +47,12 @@
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 #include "cntr_tope.h"
+
+#if GNU_LINUX
+#include <sys/epoll.h>
+#else
+#include <sys/select.h>
+#endif
 
 /* cntr_nueva_toma */
 
@@ -228,6 +233,24 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
         return CNTR_ERROR;
     }
 
+#if GNU_LINUX
+    /* Sonda: df que hace referencia a la nueva instancia de epoll */
+    toma->sonda = epoll_create1(0);
+    if (toma->sonda == -1) {
+        perror("epoll_create1");
+        return CNTR_ERROR;
+    }
+
+    /* Incluir toma de escucha en la lista de interés */
+    toma->evt->events = EPOLLIN;
+    toma->evt->data->fd = toma->servidor;
+    if (epoll_ctl(toma->sonda, EPOLL_CTL_ADD, toma->servidor,
+        &(toma->evt)) == -1) {
+        perror("epoll_ctl");
+        return CNTR_ERROR;
+    }
+#endif
+
     cntr_borra_infred(toma); /* Ya no se necesita */
     return CNTR_HECHO;
 }
@@ -243,6 +266,46 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
 
     socklen_t lnt = (socklen_t) sizeof(*cliente);
 
+#if GNU_LINUX
+    if (toma->ctdr < toma->ndsf) {
+        toma->ctdr++;
+        goto atiende_resto_eventos;
+    }
+    while(1) {
+        /* Espera eventos en la instancia epoll refenciada en la sonda */
+        toma->ndsf = epoll_wait(toma->sonda, toma->eva, CNTR_MAX_EVENTOS, -1);
+        if (toma->ndsf == -1) {
+            perror("epoll_wait");
+            return CNTR_ERROR;
+        }
+        for (toma->ctdr = 0; toma->ctdr < toma->ndsf; ++(toma->ctdr)) {
+atiende_resto_eventos:
+            if (toma->eva[toma->ctdr].data.fd == toma->servidor) {
+                /* Extraer primera conexión de la cola de conexiones */
+                toma->cliente = accept(toma->servidor, cliente, &lnt);
+                /* ¿Es cliente? */
+                if (toma->cliente < 0) {
+                    perror("accept");
+                    return CNTR_ERROR;
+                }
+                /* Sí, es cliente */
+                setnonblocking(toma->cliente);
+                toma->evt->events = EPOLLIN | EPOLLOUT | EPOLLET;
+                toma->evt->data->fd = toma->cliente;
+                if (epoll_ctl(toma->sonda, EPOLL_CTL_ADD, toma->cliente,
+                              &(toma->evt)) == -1) {
+                    perror("epoll_ctl");
+                    return CNTR_ERROR;
+                }
+            } else {
+                toma->cliente = toma->eva[toma->ctdr].data.fd;
+                goto sal_y_usa_el_df;
+            }
+        }
+    }
+sal_y_usa_el_df:
+    return CNTR_HECHO;
+#else
     fd_set lst_df_sondear_lect, lst_df_sondear_escr;
 
     /* Borrar colección de tomas E/S a sondear */
@@ -252,7 +315,7 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
     FD_SET(toma->servidor, &lst_df_sondear_lect);
 
     while (1) {
-        /* Esperar a que los df estén listos para realizar operaciones de E/S */
+        /* Esperar a que los df estén listos para hacer operaciones de E/S */
         if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
                    NULL, NULL) < 0) {
             perror("select");
@@ -267,7 +330,7 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
                 perror("accept");
                 return CNTR_ERROR;
             }
-            /* Sí; es cliente */
+            /* Sí, es cliente */
 sondea_salida:
             FD_ZERO(&lst_df_sondear_lect);
             FD_ZERO(&lst_df_sondear_escr);
@@ -282,6 +345,7 @@ sondea_salida:
         }
     }
     return CNTR_HECHO;
+#endif
 }
 
 /* cntr_cierra_toma */

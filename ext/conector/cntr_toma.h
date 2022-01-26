@@ -35,6 +35,8 @@
 #ifndef TOMA_H
 #define TOMA_H
 
+#define GNU_LINUX 0
+
 /* Tome máximo para cola de conexiones pendientes */
 #define CNTR_MAX_PENDIENTES 100
 
@@ -45,6 +47,17 @@ typedef struct cntr_ruta t_cntr_ruta;
 
 struct cntr_tope;
 typedef struct cntr_tope t_cntr_tope;
+
+#if GNU_LINUX
+
+/* Número máximo de descriptores de fichero listos para la operación de E/S
+   solicitada, que devuelve epoll_wait */
+#define CNTR_MAX_EVENTOS 10
+
+struct epoll_event;
+typedef struct epoll_event t_evento;
+
+#endif
 
 /* Para cargar los datos que se envían o reciben de la toma */
 
@@ -57,6 +70,13 @@ typedef struct datos_toma {
 } t_datos_toma;
 
 typedef struct cntr_toma_es {
+#if GNU_LINUX
+    t_evento        *evt;     /* Estructura de eventos (Linux epoll API)   */
+    t_evento eva[CNTR_MAX_EVENTOS]; /* Df. listos que tienen eventos       */
+    int             ndsf;     /* Nº dscs. de fichero listos (epoll_wait)   */
+    int             ctdr      /* Orden en la lista de df listos            */
+    int             sonda;    /* Descriptor sonda de eventos E/S (epoll)   */
+#endif
     int             servidor; /* Descriptor servidor en modo escucha       */
     int             cliente;  /* Descriptor cliente (lectura/escritura)    */
     t_datos_toma    *pila;    /* Pila de datos entre el programa y la toma */
