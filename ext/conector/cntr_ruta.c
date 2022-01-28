@@ -57,9 +57,9 @@ int
 procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
     if (   nombre == NULL
+        || strlen(nombre) < 12
         || cuenta_crtrs(nombre, '/') == CNTR_ERROR
         || cuenta_crtrs(nombre, '/') != 6
-        || strlen(nombre) < 12
         || caracter_ini(nombre) == CNTR_ERROR
         || caracter_fin(nombre) == CNTR_ERROR
         || caracter_ini(nombre) != '/'
@@ -81,7 +81,8 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 
     if (   c != (cntr_ltd(campo) - 1)
         || strcmp(campo[0], "ired") != 0
-        || strcmp(campo[1], "tcp") != 0
+        || (   strcmp(campo[1], "tcp") != 0
+            && strcmp(campo[1], "tls") != 0)
         || !es_numero(campo[3])
         || atoi(campo[3]) < 0
         || strcmp(campo[4], "0") != 0
@@ -95,6 +96,11 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
     (*ruta)->puerto_local = strdup(campo[3]);
     (*ruta)->nodo_remoto = strdup(campo[4]);
     (*ruta)->puerto_remoto = strdup(campo[5]);
+
+    if (strcmp(campo[1], "tls") == 0)
+        (*ruta)->segura = cntr_cierto;
+    else
+        (*ruta)->segura = cntr_falso;
 
     free(v_nombre);
 

@@ -36,11 +36,16 @@
 #define TOMA_H
 
 #define GNU_LINUX 0
+#define GNU_TLS   0
 
 /* Tome máximo para cola de conexiones pendientes */
 #define CNTR_MAX_PENDIENTES 100
 
+typedef enum cntr_verdad t_ctrn_verdad;
+
 struct sockaddr;
+
+struct addrinfo;
 
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
@@ -49,7 +54,6 @@ struct cntr_tope;
 typedef struct cntr_tope t_cntr_tope;
 
 #if GNU_LINUX
-
 /* Número máximo de descriptores de fichero listos para la operación de E/S
    solicitada, que devuelve epoll_wait */
 #define CNTR_MAX_EVENTOS 10
@@ -57,7 +61,31 @@ typedef struct cntr_tope t_cntr_tope;
 struct epoll_event;
 typedef struct epoll_event t_evento;
 
+typedef struct cntr_sonda {
+    t_evento        *evt;     /* Estructura de eventos (Linux epoll API)   */
+    t_evento eva[CNTR_MAX_EVENTOS]; /* Df. listos que tienen eventos       */
+    int             ndsf;     /* Nº dscs. de fichero listos (epoll_wait)   */
+    int             ctdr      /* Orden en la lista de df listos            */
+    int             dfsd;     /* Descriptor sonda de eventos E/S (epoll)   */
+} t_cntr_sonda;
 #endif
+
+struct gnutls_session_int;
+typedef struct gnutls_session_int *gnutls_session_t;
+
+typedef struct gnutls_anon_server_credentials_st
+*gnutls_anon_server_credentials_t;
+
+typedef struct capa_gnutls {
+    gnutls_session_t                 sesion;
+    gnutls_anon_server_credentials_t credanon;
+} t_capa_gnutls;
+
+typedef ssize_t (*rcb_datos)(gnutls_session_t sesion, int df_cliente,
+                             void *tope, size_t len);
+
+typedef ssize_t (*env_datos)(gnutls_session_t sesion, int df_cliente,
+                             const void *tope, size_t len);
 
 /* Para cargar los datos que se envían o reciben de la toma */
 
@@ -67,21 +95,20 @@ typedef struct datos_toma {
     size_t      tsr;          /* Tamaño cadena separador de registro       */
     size_t      lgtreg;       /* Tamaño actual del registro                */
     int         en_uso;
-} t_datos_toma;
+} t_cntr_dts_toma;
 
 typedef struct cntr_toma_es {
+    t_capa_gnutls   *gtls;
 #if GNU_LINUX
-    t_evento        *evt;     /* Estructura de eventos (Linux epoll API)   */
-    t_evento eva[CNTR_MAX_EVENTOS]; /* Df. listos que tienen eventos       */
-    int             ndsf;     /* Nº dscs. de fichero listos (epoll_wait)   */
-    int             ctdr      /* Orden en la lista de df listos            */
-    int             sonda;    /* Descriptor sonda de eventos E/S (epoll)   */
+    t_cntr_sonda    *sonda;   /* Sonda de eventos E/S (epoll API)          */
 #endif
     int             servidor; /* Descriptor servidor en modo escucha       */
     int             cliente;  /* Descriptor cliente (lectura/escritura)    */
-    t_datos_toma    *pila;    /* Pila de datos entre el programa y la toma */
+    t_cntr_dts_toma *pila;    /* Pila de datos entre el programa y la toma */
     struct addrinfo *infred;  /* Información de red TCP/IP (API Linux)     */
     t_ctrn_verdad   local;    /* ¿Toma local?                              */
+    env_datos       envia;    /* Puntero al envío de datos                 */
+    rcb_datos       recibe;   /* Puntero a la recepción de datos           */
 } t_cntr_toma_es;
 
 typedef struct elector_es {
@@ -106,10 +133,20 @@ cntr_nueva_toma(t_cntr_ruta *ruta);
 void
 cntr_borra_toma(t_cntr_toma_es *toma);
 
-/* cntr_nueva_estructura_datos_toma */
+/* cntr_nueva_estructura_datos_toma --
+ *
+ * Crea estructura de la pila de datos
+ */
 
-t_datos_toma *
+t_cntr_dts_toma *
 cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
+
+/* cntr_envia_datos --
+ *
+ * Recubrimiento para enviar datos por la toma
+ */
+ssize_t cntr_envia_datos(gnutls_session_t sesion, int df_cliente,
+                         const void *tope, size_t len);
 
 /* cntr_envia_toma --
  *

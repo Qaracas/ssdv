@@ -22,6 +22,11 @@ $(EXT): objetos
 	mkdir -p $(DLB)
 	cp $(EXT)$(SUFLIB) $(DLB)
 
+gnutls: objetos
+	$(CC) -shared -o $(EXT)$(SUFLIB) $(OJS) `pkg-config gnutls --libs`
+	mkdir -p $(DLB)
+	cp $(EXT)$(SUFLIB) $(DLB)
+
 objetos:
 	$(foreach i,$(LOJ),$(CC) $(COP) $(CIN) $(i).c;)
 

@@ -38,8 +38,6 @@
 struct cntr_ruta;
 typedef struct cntr_ruta t_cntr_ruta;
 
-typedef enum cntr_verdad t_ctrn_verdad;
-
 typedef struct cntr_pieza {
     t_cntr_ruta       *ruta;       /* Ruta de conexión */
     struct cntr_pieza *siguiente;  /* Siguiente pieza  */

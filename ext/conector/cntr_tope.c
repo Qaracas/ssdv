@@ -83,6 +83,15 @@ cntr_borra_tope(t_cntr_tope *tope)
     tope = NULL;
 }
 
+/* cntr_recibe_datos */
+
+ssize_t cntr_recibe_datos(gnutls_session_t sesion, int df_cliente, void *tope,
+                          size_t bulto)
+{
+    (void) sesion;
+    return recv(df_cliente, tope, bulto, 0);
+}
+
 /* cntr_rcbl_llena_tope */
 
 int
@@ -94,9 +103,9 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
-    tope->ldatos = recv(toma->cliente,
-                        tope->datos + tope->ptrreg,
-                        tope->bulto - tope->ptrreg, 0);
+    tope->ldatos = (*toma->recibe)(toma->gtls->sesion, toma->cliente,
+                                   tope->datos + tope->ptrreg,
+                                   tope->bulto - tope->ptrreg);
 
     if (tope->ldatos < 0) {
         perror("recv");
@@ -133,7 +142,8 @@ cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
-    tope->ldatos = recv(toma->cliente, tope->datos, tope->bulto, 0);
+    tope->ldatos = (*toma->recibe)(toma->gtls->sesion, toma->cliente,
+                                   tope->datos, tope->bulto);
 
     if (tope->ldatos < 0) {
         perror("recv");

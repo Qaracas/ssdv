@@ -40,9 +40,6 @@
 
 #define CNTR_TOPE_MAX_X_DEF 1024
 
-struct cntr_ruta;
-typedef struct cntr_ruta t_cntr_ruta;
-
 typedef struct cntr_tope {
     size_t  bulto; /* Volumen o capacidad del tope */
     int    ldatos; /* Cantidad datos almacenados   */
@@ -69,6 +66,13 @@ void cntr_borra_tope(t_cntr_tope *tope);
  *
  * Llenar hasta el tope con líneas terminadas en RS
  */
+
+/* cntr_recibe_datos --
+ *
+ * Recubrimiento para recibir datos por la toma
+ */
+ssize_t cntr_recibe_datos(gnutls_session_t sesion, int df_cliente, void *tope,
+                          size_t len);
 
 int cntr_rcbl_llena_tope(t_cntr_toma_es *toma);
 

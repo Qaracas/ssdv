@@ -54,6 +54,10 @@
 #include <sys/select.h>
 #endif
 
+#if GNU_TLS
+#include <gnutls/gnutls.h>
+#endif
+
 /* cntr_nueva_toma */
 
 t_cntr_toma_es *
@@ -64,8 +68,15 @@ cntr_nueva_toma(t_cntr_ruta *ruta)
 
     cntr_asigmem(ruta->toma, t_cntr_toma_es *,
                  sizeof(t_cntr_toma_es), "cntr_nueva_toma");
+#if GNU_LINUX
+    cntr_asigmem(ruta->toma->sonda, t_cntr_sonda *,
+                 sizeof(t_cntr_sonda), "cntr_nueva_toma");
+#endif
     ruta->toma->servidor = CNTR_DF_NULO;
-    ruta->toma->cliente  = CNTR_DF_NULO;
+    ruta->toma->cliente = CNTR_DF_NULO;
+
+    ruta->toma->envia = &cntr_envia_datos;
+    ruta->toma->recibe = &cntr_recibe_datos;
 
     return ruta->toma;
 }
@@ -76,16 +87,19 @@ void
 cntr_borra_toma(t_cntr_toma_es *toma)
 {
     free(toma);
+#if GNU_LINUX
+    free(toma->sonda);
+#endif
     toma = NULL;
 }
 
 /* cntr_nueva_estructura_datos_toma */
 
-t_datos_toma *
+t_cntr_dts_toma *
 cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm)
 {
-    cntr_asigmem(toma->pila, t_datos_toma *,
-                 sizeof(t_datos_toma), "cntr_nueva_estructura_datos_toma");
+    cntr_asigmem(toma->pila, t_cntr_dts_toma *,
+                 sizeof(t_cntr_dts_toma), "cntr_nueva_estructura_datos_toma");
     toma->pila->lgtreg = 0;
     toma->pila->en_uso = 1;
 
@@ -99,12 +113,21 @@ cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm)
     return toma->pila;
 }
 
+/* envia_datos */
+
+ssize_t cntr_envia_datos(gnutls_session_t sesion, int df_cliente,
+                         const void *tope, size_t bulto)
+{
+    (void) sesion;
+    return send(df_cliente, tope, bulto, 0);
+}
+
 /* cntr_envia_a_toma */
 
 int
 cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t bulto)
 {
-    if (send(toma->cliente, datos, bulto, 0) < 0) {
+    if ((*toma->envia)(toma->gtls->sesion, toma->cliente, datos, bulto) < 0) {
         perror("send");
         return CNTR_ERROR;
     }
@@ -235,20 +258,35 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
 
 #if GNU_LINUX
     /* Sonda: df que hace referencia a la nueva instancia de epoll */
-    toma->sonda = epoll_create1(0);
-    if (toma->sonda == -1) {
+    toma->sonda->dfsd = epoll_create1(0);
+    if (toma->sonda->dfsd == -1) {
         perror("epoll_create1");
         return CNTR_ERROR;
     }
 
     /* Incluir toma de escucha en la lista de interés */
-    toma->evt->events = EPOLLIN;
-    toma->evt->data->fd = toma->servidor;
-    if (epoll_ctl(toma->sonda, EPOLL_CTL_ADD, toma->servidor,
-        &(toma->evt)) == -1) {
+    toma->sonda->evt->events = EPOLLIN;
+    toma->sonda->evt->data->fd = toma->servidor;
+    if (epoll_ctl(toma->sonda->dfsd, EPOLL_CTL_ADD, toma->servidor,
+        &(toma->sonda->evt)) == -1) {
         perror("epoll_ctl");
         return CNTR_ERROR;
     }
+#endif
+
+#if GNU_TLS
+    if (gnutls_check_version("3.1.4") == NULL) {
+        fprintf(stderr, "Se requiere GnuTLS 3.1.4 o posterior\n");
+        return CNTR_ERROR;
+    }
+
+    cntr_asigmem(toma->gtls, t_capa_gnutls *,
+                 sizeof(t_capa_gnutls), "cntr_pon_a_escuchar_toma");
+
+    gnutls_global_init();
+    gnutls_anon_allocate_server_credentials(&(toma->gtls->credanon));
+    gnutls_anon_set_server_known_dh_params(toma->gtls->credanon,
+                                           GNUTLS_SEC_PARAM_MEDIUM);
 #endif
 
     cntr_borra_infred(toma); /* Ya no se necesita */
@@ -267,20 +305,23 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
     socklen_t lnt = (socklen_t) sizeof(*cliente);
 
 #if GNU_LINUX
-    if (toma->ctdr < toma->ndsf) {
-        toma->ctdr++;
+    if (toma->sonda->ctdr < toma->sonda->ndsf) {
+        toma->sonda->ctdr++;
         goto atiende_resto_eventos;
     }
     while(1) {
         /* Espera eventos en la instancia epoll refenciada en la sonda */
-        toma->ndsf = epoll_wait(toma->sonda, toma->eva, CNTR_MAX_EVENTOS, -1);
-        if (toma->ndsf == -1) {
+        toma->sonda->ndsf = epoll_wait(toma->sonda->dfsd, toma->sonda->eva,
+                                       CNTR_MAX_EVENTOS, -1);
+        if (toma->sonda->ndsf == -1) {
             perror("epoll_wait");
             return CNTR_ERROR;
         }
-        for (toma->ctdr = 0; toma->ctdr < toma->ndsf; ++(toma->ctdr)) {
+        for (toma->sonda->ctdr = 0; toma->sonda->ctdr < toma->sonda->ndsf;
+             ++(toma->sonda->ctdr)) {
 atiende_resto_eventos:
-            if (toma->eva[toma->ctdr].data.fd == toma->servidor) {
+            if (   toma->sonda->eva[toma->sonda->ctdr].data.fd
+                == toma->sonda->servidor) {
                 /* Extraer primera conexión de la cola de conexiones */
                 toma->cliente = accept(toma->servidor, cliente, &lnt);
                 /* ¿Es cliente? */
@@ -290,15 +331,15 @@ atiende_resto_eventos:
                 }
                 /* Sí, es cliente */
                 setnonblocking(toma->cliente);
-                toma->evt->events = EPOLLIN | EPOLLOUT | EPOLLET;
-                toma->evt->data->fd = toma->cliente;
-                if (epoll_ctl(toma->sonda, EPOLL_CTL_ADD, toma->cliente,
-                              &(toma->evt)) == -1) {
+                toma->sonda->evt->events = EPOLLIN | EPOLLOUT | EPOLLET;
+                toma->sonda->evt->data->fd = toma->cliente;
+                if (epoll_ctl(toma->sonda->dfsd, EPOLL_CTL_ADD, toma->cliente,
+                              &(toma->sonda->evt)) == -1) {
                     perror("epoll_ctl");
                     return CNTR_ERROR;
                 }
             } else {
-                toma->cliente = toma->eva[toma->ctdr].data.fd;
+                toma->cliente = toma->sonda->eva[toma->sonda->ctdr].data.fd;
                 goto sal_y_usa_el_df;
             }
         }

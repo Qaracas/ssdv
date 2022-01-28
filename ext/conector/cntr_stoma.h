@@ -35,9 +35,6 @@
 #ifndef STOMA_H
 #define STOMA_H
 
-struct cntr_ruta;
-typedef struct cntr_ruta t_cntr_ruta;
-
 /* cntr_nueva_infred --
  *
  * Crea estructura addrinfo dentro de la rura y la marca adecuadamente
