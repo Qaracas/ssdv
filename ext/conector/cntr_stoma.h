@@ -41,12 +41,14 @@
  * si es un nodo local
  */
 
-int cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma);
+int
+cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma);
 
 /* cntr_borra_infred --
  * Libera memoria ocupada por estructura addrinfo
  */
 
-void cntr_borra_infred(t_cntr_toma_es *toma);
+void
+cntr_borra_infred(t_cntr_toma_es *toma);
 
 #endif /* STOMA_H */

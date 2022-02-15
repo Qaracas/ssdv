@@ -67,15 +67,15 @@ typedef struct cntr_resultado {
  * Crea nuevo resultado relativo a la ejecución de una función
  */
 
-t_cntr_resultado
-*cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error);
+t_cntr_resultado *
+cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error);
 
 /* cntr_msj_error --
  *
  * Forma mensaje de error a partir de un resultado y un texto dado
  */
 
-char
-*cntr_msj_error(const char *desc, ...);
+char *
+cntr_msj_error(const char *desc, ...);
 
 #endif /* DEFCOM_H */

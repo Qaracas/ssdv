@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include "cntr_capa_tls.h"
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
@@ -85,10 +86,11 @@ cntr_borra_tope(t_cntr_tope *tope)
 
 /* cntr_recibe_datos */
 
-ssize_t cntr_recibe_datos(gnutls_session_t sesion, int df_cliente, void *tope,
-                          size_t bulto)
+ssize_t
+cntr_recibe_datos(t_capa_gnutls *capatls, int df_cliente, void *tope,
+                  size_t bulto)
 {
-    (void) sesion;
+    (void) capatls;
     return recv(df_cliente, tope, bulto, 0);
 }
 
@@ -103,7 +105,7 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
-    tope->ldatos = (*toma->recibe)(toma->gtls->sesion, toma->cliente,
+    tope->ldatos = (*toma->recibe)(toma->gtls, toma->cliente,
                                    tope->datos + tope->ptrreg,
                                    tope->bulto - tope->ptrreg);
 
@@ -142,8 +144,8 @@ cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
-    tope->ldatos = (*toma->recibe)(toma->gtls->sesion, toma->cliente,
-                                   tope->datos, tope->bulto);
+    tope->ldatos = (*toma->recibe)(toma->gtls, toma->cliente, tope->datos,
+                                   tope->bulto);
 
     if (tope->ldatos < 0) {
         perror("recv");

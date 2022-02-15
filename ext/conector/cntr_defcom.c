@@ -40,8 +40,8 @@
 
 /* cntr_nuevo_resultado */
 
-t_cntr_resultado
-*cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error)
+t_cntr_resultado *
+cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error)
 {
     if (codigo == CNTR_ERROR && texto_error == NULL)
         return NULL;
@@ -65,8 +65,8 @@ t_cntr_resultado
 
 /* cntr_msj_error */
 
-char
-*cntr_msj_error(const char *desc, ...)
+char *
+cntr_msj_error(const char *desc, ...)
 {
     /* Variable para almacenar la lista de argumentos */
     va_list lista_args;

@@ -45,8 +45,8 @@ static t_cntr_pieza *serie;
 
 /* privada - pon_ruta_en_serie */
 
-static t_cntr_ruta
-*pon_ruta_en_serie(t_cntr_ruta *ruta, t_cntr_pieza **serie)
+static t_cntr_ruta *
+pon_ruta_en_serie(t_cntr_ruta *ruta, t_cntr_pieza **serie)
 {
     if (*serie == NULL) {
         cntr_asigmem(*serie, t_cntr_pieza *,
@@ -84,8 +84,8 @@ borra_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza **serie)
 
 /* privada - busca_ruta_en_serie */
 
-static t_cntr_ruta
-*busca_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie)
+static t_cntr_ruta *
+busca_ruta_en_serie(const char *nombre_ruta, t_cntr_pieza *serie)
 {
     if (nombre_ruta == NULL || serie == NULL)
         return NULL;
@@ -98,8 +98,8 @@ static t_cntr_ruta
 
 /* cntr_pon_ruta_en_serie */
 
-t_cntr_ruta
-*cntr_pon_ruta_en_serie(t_cntr_ruta *ruta)
+t_cntr_ruta *
+cntr_pon_ruta_en_serie(t_cntr_ruta *ruta)
 {
     extern t_cntr_pieza *serie;
 
@@ -118,8 +118,8 @@ cntr_borra_ruta_de_serie(const char *nombre_ruta)
 
 /* cntr_busca_ruta_en_serie */
 
-t_cntr_ruta
-*cntr_busca_ruta_en_serie(const char *nombre_ruta)
+t_cntr_ruta *
+cntr_busca_ruta_en_serie(const char *nombre_ruta)
 {
     extern t_cntr_pieza *serie;
 

@@ -53,34 +53,40 @@ typedef struct cntr_tope {
  * Crea nuevo tope de tamaño 'bulto'
  */
 
-int cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope);
+int
+cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope);
 
 /* cntr_borra_tope --
  *
  * Libera memoria y destruye tope
  */
 
-void cntr_borra_tope(t_cntr_tope *tope);
+void
+cntr_borra_tope(t_cntr_tope *tope);
+
+/* cntr_recibe_datos --
+ *
+ * Recubrimiento para recibir datos por la toma
+ */
+
+ssize_t
+cntr_recibe_datos(t_capa_gnutls *capatls, int df_cliente, void *tope,
+                  size_t len);
 
 /* cntr_rcbl_llena_tope --
  *
  * Llenar hasta el tope con líneas terminadas en RS
  */
 
-/* cntr_recibe_datos --
- *
- * Recubrimiento para recibir datos por la toma
- */
-ssize_t cntr_recibe_datos(gnutls_session_t sesion, int df_cliente, void *tope,
-                          size_t len);
-
-int cntr_rcbl_llena_tope(t_cntr_toma_es *toma);
+int
+cntr_rcbl_llena_tope(t_cntr_toma_es *toma);
 
 /* cntr_rcbf_llena_tope --
  *
  * Llenar hasta el tope con flujo contínuo de datos
  */
 
-int cntr_rcbf_llena_tope(t_cntr_toma_es *toma);
+int
+cntr_rcbf_llena_tope(t_cntr_toma_es *toma);
 
 #endif /* TOPE_H */

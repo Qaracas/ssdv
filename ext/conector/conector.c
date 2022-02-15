@@ -45,6 +45,7 @@
 
 #include <arpa/inet.h>
 
+#include "cntr_capa_tls.h"
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
@@ -276,15 +277,11 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
                    struct awk_ext_func *desusado)
 {
     (void) desusado;
-    t_elector_es opcn;
 
     if (f_interna_acaba_toma(nargs) != 0)
         return make_number(-1, resultado);
 
-    opcn.es_servidor = 1;
-    opcn.es_cliente  = 0;
-    opcn.forzar      = 0;
-    if (cntr_cierra_toma(rt->toma, opcn) == CNTR_ERROR)
+    if (cntr_cierra_toma_servidor(rt->toma, 0) == CNTR_ERROR)
         lintwarn(ext_id, "acabasrv: error cerrando toma");
 
     return make_number(0, resultado);
@@ -294,20 +291,17 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
  *
  * Cierra toma de datos local
  */
+
 static awk_value_t *
 haz_acaba_toma_cli(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 {
     (void) desusado;
-    t_elector_es opcn;
 
     if (f_interna_acaba_toma(nargs) != 0)
         return make_number(-1, resultado);
 
-    opcn.es_servidor = 0;
-    opcn.es_cliente  = 1;
-    opcn.forzar      = 0;
-    if (cntr_cierra_toma(rt->toma, opcn) == CNTR_ERROR)
+    if (cntr_cierra_toma_cliente(rt->toma, 0) == CNTR_ERROR)
         lintwarn(ext_id, "acabacli: error cerrando toma con cliente");
 
     return make_number(0, resultado);
@@ -372,6 +366,94 @@ llena_coleccion:
     /* Devuelve accept(), es decir, el descriptor de fichero de la
        toma de datos recién creada para comunicar con el cliente. */
     return make_number(rt->toma->cliente, resultado);
+}
+
+/* haz_par_clave_y_certificado_tls --
+ *
+ * Certificado de servidor y clave privada usado para la conexión TLS
+ */
+
+static awk_value_t *
+haz_par_clave_y_certificado_tls(int nargs, awk_value_t *resultado,
+                                struct awk_ext_func *desusado)
+{
+    (void) desusado;
+
+    awk_value_t valorarg;
+    extern t_cntr_ruta *rt;
+
+    /* Sólo acepta 2 argumentos como máximo */
+    if (nargs != 3)
+        fatal(ext_id, "pcertcla: nº de argumentos incorrecto");
+
+    if (! get_argument(0, AWK_STRING, &valorarg))
+        fatal(ext_id, "pcertcla: tipo de argumento incorrecto");
+
+    const char *nombre_ruta = (const char *) valorarg.str_value.str;
+
+    if (nombre_ruta == NULL)
+        fatal(ext_id, "pcertcla: error leyendo nombre de fichero especial");
+
+    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
+        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+            fatal(ext_id, "pcertcla: toma de datos inexistente");
+
+    if (! get_argument(1, AWK_STRING, &valorarg))
+        fatal(ext_id, "pcertcla: tipo de argumento incorrecto");
+
+    const char *f_certificado = (const char *) valorarg.str_value.str;
+
+    if (! get_argument(2, AWK_STRING, &valorarg))
+        fatal(ext_id, "pcertcla: tipo de argumento incorrecto");
+
+    const char *f_clave_privada = (const char *) valorarg.str_value.str;
+
+    cntr_par_clave_privada_y_certificado_tls(rt->toma->gtls, f_certificado,
+                                             f_clave_privada);
+
+    return make_number(0, resultado);
+}
+
+
+/* haz_lista_autoridades_tls --
+ *
+ * Fichero con lista de autoridades certificadoras usado para la conexión TLS
+ */
+
+static awk_value_t *
+haz_lista_autoridades_tls(int nargs, awk_value_t *resultado,
+                          struct awk_ext_func *desusado)
+{
+    (void) desusado;
+
+    awk_value_t valorarg;
+    extern t_cntr_ruta *rt;
+
+    /* Sólo acepta 2 argumentos como máximo */
+    if (nargs != 2)
+        fatal(ext_id, "lisautor: nº de argumentos incorrecto");
+
+    if (! get_argument(0, AWK_STRING, &valorarg))
+        fatal(ext_id, "lisautor: tipo de argumento incorrecto");
+
+    const char *nombre_ruta = (const char *) valorarg.str_value.str;
+
+    if (nombre_ruta == NULL)
+        fatal(ext_id, "lisautor: error leyendo nombre de fichero especial");
+
+    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
+        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+            fatal(ext_id, "lisautor: toma de datos inexistente");
+
+    if (! get_argument(1, AWK_STRING, &valorarg))
+        fatal(ext_id, "lisautor: tipo de argumento incorrecto");
+
+    const char *f_auto_certificadoras = (const char *) valorarg.str_value.str;
+
+    cntr_fichero_autoridades_certificadoras_tls(rt->toma->gtls,
+                                                f_auto_certificadoras);
+
+    return make_number(0, resultado);
 }
 
 /**
@@ -517,9 +599,6 @@ conector_tomar_control_de(const char *nombre, awk_input_buf_t *tpent,
         return awk_false;
 
     extern t_cntr_ruta *rt;
-    extern recibe_toma recibe;
-    awk_value_t valor_tpm;
-    t_cntr_tope *tope = rt->toma->pila->tope;
 
     /* Entrada */
     tpent->opaque = NULL;
@@ -536,23 +615,6 @@ conector_tomar_control_de(const char *nombre, awk_input_buf_t *tpent,
     tpsal->gawk_fflush = limpia_toma_salida;
     tpsal->gawk_ferror = maneja_error;
     tpsal->gawk_fclose = cierra_toma_salida;
-
-    if (!(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)))
-        fatal(ext_id, "conector_tomar_control_de: error leyendo variable TPM");
-
-    if (valor_tpm.num_value < 0)
-        fatal(ext_id, "conector_tomar_control_de: valor de TPM incorrecto");
-
-    size_t tpm = (size_t) valor_tpm.num_value;
-
-    if (tpm != tope->bulto) {
-        cntr_borra_tope(tope);
-        cntr_nuevo_tope(tpm, &tope);
-        if (tpm == 0)
-            recibe = &cntr_recibe_linea_toma;
-        else
-            recibe = &cntr_recibe_flujo_toma;
-    }
 
     return awk_true;
 }
@@ -581,11 +643,13 @@ inicia_conector()
 /* Define nuevos comantos para GAWK */
 
 static awk_ext_func_t lista_de_funciones[] = {
-    { "creatoma", haz_crea_toma,       1, 1, awk_false, NULL },
-    { "dtrytoma", haz_destruye_toma,   1, 1, awk_false, NULL },
-    { "acabasrv", haz_acaba_toma_srv,  1, 1, awk_false, NULL },
-    { "acabacli", haz_acaba_toma_cli,  1, 1, awk_false, NULL },
-    { "traepcli", haz_trae_primer_cli, 2, 1, awk_false, NULL },
+    { "creatoma", haz_crea_toma,                   1, 1, awk_false, NULL },
+    { "dtrytoma", haz_destruye_toma,               1, 1, awk_false, NULL },
+    { "acabasrv", haz_acaba_toma_srv,              1, 1, awk_false, NULL },
+    { "acabacli", haz_acaba_toma_cli,              1, 1, awk_false, NULL },
+    { "traepcli", haz_trae_primer_cli,             2, 1, awk_false, NULL },
+    { "pcertcla", haz_par_clave_y_certificado_tls, 3, 1, awk_false, NULL },
+    { "lisautor", haz_lista_autoridades_tls,       2, 1, awk_false, NULL },
 };
 
 /* Cargar funciones */

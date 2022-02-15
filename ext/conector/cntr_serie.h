@@ -48,20 +48,23 @@ typedef struct cntr_pieza {
  * Añade una nueva ruta a la cadena
  */
 
-t_cntr_ruta *cntr_pon_ruta_en_serie(t_cntr_ruta *ruta);
+t_cntr_ruta *
+cntr_pon_ruta_en_serie(t_cntr_ruta *ruta);
 
 /* cntr_borra_ruta_de_serie --
  *
  * Borra una ruta de la cadena
  */
 
-void cntr_borra_ruta_de_serie(const char *nombre_ruta);
+void
+cntr_borra_ruta_de_serie(const char *nombre_ruta);
 
 /* cntr_busca_ruta_en_serie --
  *
  * Busca una ruta en la cadena
  */
 
-t_cntr_ruta *cntr_busca_ruta_en_serie(const char *nombre_ruta);
+t_cntr_ruta *
+cntr_busca_ruta_en_serie(const char *nombre_ruta);
 
 #endif /* SERIE_H */
