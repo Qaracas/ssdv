@@ -45,20 +45,23 @@ BEGIN {
     # cero leeremos una cantidad TPM de 'bytes' cada vez.
     TPM = 0;
 
-    ruta1 = "/ired/tcp/localhost/" ARGV[1] "/0/0";
-    ruta2 = "/ired/tcp/localhost/" ARGV[2] "/0/0";
+    rutaTCP = "/ired/tcp/localhost/" ARGV[1] "/0/0";
+    rutaTLS = "/ired/tls/localhost/" ARGV[2] "/0/0";
 
-    creatoma(ruta1);
-    creatoma(ruta2);
+    creatoma(rutaTCP);
+    creatoma(rutaTLS);
+
+    pcertcla(rutaTLS, "certificado_servidor.pem", "clave_privada.pem");
+    lisautor(rutaTLS, "/etc/pki/tls/certs/ca-bundle.crt");
 
     if ((pid = fork()) == 0) {
         # Rama hija escucha por un puerto
-        bucle(ruta2, ARGV[2]);
+        bucle(rutaTLS, ARGV[2]);
         exit 0;
     }
 
     # Rama padre escucha por el otro
-    bucle(ruta1, ARGV[1]);
+    bucle(rutaTCP, ARGV[1]);
     print "Esperando por proceso que escucha en puerto " ARGV[2];
     while (wait() > 0);
 
