@@ -1,7 +1,7 @@
 INC = /usr/include
 COP = -fPIC -shared -DHAVE_CONFIG_H -c -O -g
 CIN = -I$(INC)
-CC  = gcc -Wall -Wextra -pedantic
+CC  = gcc -Wall -Wextra -Werror -pedantic
 EXT = leeflujo
 
 DLB = ../lib
