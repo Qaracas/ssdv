@@ -75,7 +75,6 @@ cntr_nueva_toma(t_cntr_ruta *ruta)
     if (ruta->segura) {
         cntr_asigmem(ruta->toma->gtls, t_capa_gnutls *,
                      sizeof(t_capa_gnutls), "cntr_nueva_toma");
-        ruta->toma->gtls->usándose = 1;
         ruta->toma->envia = &cntr_envia_datos_capa_tls;
         ruta->toma->recibe = &cntr_recibe_datos_capa_tls;
     } else {
@@ -390,11 +389,6 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
     FD_SET(toma->servidor, &lst_df_sondear_lect);
 
     while (1) {
-        if (   (toma->gtls != NULL)
-            && (   cntr_inicia_sesion_capa_tls_servidor(toma->gtls)
-                != CNTR_HECHO))
-            return CNTR_ERROR;
-
         /* Esperar a que los df estén listos para hacer operaciones de E/S */
         if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
                    NULL, NULL) < 0) {
@@ -403,6 +397,10 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
         }
         /* Atender tomas con eventos de entrada pendientes */
         if (FD_ISSET(toma->servidor, &lst_df_sondear_lect)) {
+            if (   (toma->gtls != NULL)
+                && (   cntr_inicia_sesion_capa_tls_servidor(toma->gtls)
+                    != CNTR_HECHO))
+                return CNTR_ERROR;
             /* Extraer primera conexión de la cola de conexiones */
             toma->cliente = accept(toma->servidor, cliente, &lnt);
             /* ¿Es cliente? */
