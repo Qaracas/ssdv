@@ -37,11 +37,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "cntr_capa_tls.h"
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_tope.h"
+#include "cntr_capa_tls.h"
 
 /* cntr_nuevo_tope */
 
@@ -109,17 +109,20 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
                                    tope->datos + tope->ptrreg,
                                    tope->bulto - tope->ptrreg);
 
-    if (tope->ldatos < 0) {
-        perror("recv");
-        return CNTR_ERROR;
-    } else if (tope->ldatos == 0) {
-        if (tope->ptrreg > 0) {
-            bzero(tope->datos + tope->ptrreg,
-                  tope->bulto - tope->ptrreg);
-            /* No hay datos en la toma, y se envía el remanente */
-            return CNTR_TOPE_RESTO;
-        } else
-            return CNTR_TOPE_VACIO;
+    switch (tope->ldatos) {
+        case CNTR_ERROR:
+            perror("recv"); /* ERROR: Si es TLS esto no vale */
+            return CNTR_ERROR;
+        case CNTR_REINTENTAR:
+            return CNTR_REINTENTAR;
+        case 0:
+            if (tope->ptrreg > 0) {
+                bzero(tope->datos + tope->ptrreg,
+                      tope->bulto - tope->ptrreg);
+                /* No hay datos en la toma, y se envía el remanente */
+                return CNTR_TOPE_RESTO;
+            } else
+                return CNTR_TOPE_VACIO;
     }
 
     /* Limpiar el sobrante */
@@ -147,11 +150,14 @@ cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
     tope->ldatos = (*toma->recibe)(toma->gtls, toma->cliente, tope->datos,
                                    tope->bulto);
 
-    if (tope->ldatos < 0) {
-        perror("recv");
-        return CNTR_ERROR;
-    } else if (tope->ldatos == 0) {
-        return CNTR_TOPE_VACIO;
+    switch (tope->ldatos) {
+        case CNTR_ERROR:
+            perror("recv"); /* ERROR: Si es TLS esto no vale */
+            return CNTR_ERROR;
+        case CNTR_REINTENTAR:
+            return CNTR_REINTENTAR;
+        case 0:
+            return CNTR_TOPE_VACIO;
     }
 
     return CNTR_HECHO;

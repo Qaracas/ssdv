@@ -40,7 +40,6 @@
 #include <netdb.h>
 
 #include "cntr_defcom.h"
-#include "cntr_ruta.h" /* Borrar */
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 

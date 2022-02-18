@@ -58,11 +58,19 @@ typedef struct gnutls_certificate_credentials_st
 struct gnutls_priority_st;
 typedef struct gnutls_priority_st *gnutls_priority_t;
 
+#ifndef T_CTRN_VERDAD
+#define T_CTRN_VERDAD
+typedef enum cntr_verdad {
+    cntr_falso  = 0,
+    cntr_cierto = 1
+} t_ctrn_verdad;
+#endif
+
 typedef struct capa_gnutls {
     gnutls_certificate_credentials_t credx509;  /* Est. certificado X.509 */
     gnutls_priority_t                prioridad; /* Para cifrado y claves  */
     gnutls_session_t                 sesión;    /* Sesión TLS             */
-    unsigned int                     usándose : 1;
+    t_ctrn_verdad                    usándose : 1;
 } t_capa_gnutls;
 
 

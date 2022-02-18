@@ -40,8 +40,8 @@
 #include <string.h>
 #include <gnutls/gnutls.h>
 
-#include "cntr_capa_tls.h"
 #include "cntr_defcom.h"
+#include "cntr_capa_tls.h"
 
 /* cntr_inicia_globalmente_capa_tls_servidor */
 
@@ -140,14 +140,16 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
         fprintf(stderr,
                 "Dialogo TLS fallido: %s\n",
                 gnutls_strerror(resul));
-        return CNTR_ERROR;
+        return CNTR_REINTENTAR;
     }
 
     BUCLE_VERIFICA(resul, gnutls_record_recv(capatls->sesión, tope, bulto));
-    if (resul < 0)
+    if (resul < 0) {
         fprintf(stderr,
                 "gnutls_record_recv(): %s\n",
                 gnutls_strerror(resul));
+         return CNTR_ERROR;
+    }
 
     return resul;
 }

@@ -40,19 +40,25 @@ struct addrinfo;
 struct cntr_toma_es;
 typedef struct cntr_toma_es t_cntr_toma_es;
 
-typedef enum cntr_verdad t_ctrn_verdad;
+#ifndef T_CTRN_VERDAD
+#define T_CTRN_VERDAD
+typedef enum cntr_verdad {
+    cntr_falso  = 0,
+    cntr_cierto = 1
+} t_ctrn_verdad;
+#endif
 
 typedef struct cntr_ruta {
     char            *nombre;        /* Identificador de ruta    */
     char            *tipo;          /* Normalmente ired         */
-    char            *protocolo;     /* Normalmente TCP          */
+    char            *protocolo;     /* O capa (TCP/TLS)         */
     char            *nodo_local;    /* Nombre o dir IP del nodo */
     char            *puerto_local;  /* Puerto de E/S            */
     char            *nodo_remoto;   /* Nombre o dir IP del nodo */
     char            *puerto_remoto; /* Puerto remoto de E/S     */
     t_cntr_toma_es  *toma;          /* Toma de datos de E/S     */
-    t_ctrn_verdad   local;          /* ¿Ruta local?             */
-    t_ctrn_verdad   segura;         /* ¿Es segura?              */
+    t_ctrn_verdad   local  : 1;     /* ¿Ruta local?             */
+    t_ctrn_verdad   segura : 1;     /* ¿Es segura?              */
 } t_cntr_ruta;
 
 /* cntr_nueva_ruta --

@@ -42,12 +42,12 @@
 #include <netdb.h>
 #include <string.h>
 
-#include "cntr_capa_tls.h"
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
 #include "cntr_tope.h"
+#include "cntr_capa_tls.h"
 
 #if GNU_LINUX
 #include <sys/epoll.h>
@@ -153,21 +153,32 @@ cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
                        t_cntr_resultado **resul)
 {
     int recbt;
+    struct sockaddr_in cliente;
     t_cntr_tope *tope = toma->pila->tope;
 
     if (tope->ldatos == 0) {
+reintenta_recibir_linea:
         errno = 0;
         recbt = cntr_rcbl_llena_tope(toma);
+
         switch (recbt) {
             case CNTR_TOPE_RESTO:
                 return tope->datos;
             case CNTR_TOPE_VACIO:
                 return NULL;
+            case CNTR_REINTENTAR:
+                if (cntr_trae_primer_cliente_toma(toma,
+                                                  (struct sockaddr*) &cliente)
+                                                  == CNTR_ERROR)
+                *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
+                                              "error leyendo toma");
+                goto reintenta_recibir_linea;
             case CNTR_ERROR:
                 *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
                                               "error leyendo toma");
-                break;
+                return NULL;
         }
+
     } else {
         /* Apunta al siguiente registro del tope */
         tope->ptrreg += toma->pila->lgtreg + toma->pila->tsr;
@@ -207,17 +218,27 @@ cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
                        t_cntr_resultado **resul)
 {
     int recbt;
+    struct sockaddr_in cliente;
     t_cntr_tope *tope = toma->pila->tope;
 
+reintenta_recibir_flujo:
     errno = 0;
     recbt = cntr_rcbf_llena_tope(toma);
 
-    if (recbt == CNTR_ERROR) {
-        *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                                      "error leyendo toma");
-        return NULL;
-    } else if (recbt == CNTR_TOPE_VACIO) {
-        return NULL;
+    switch (recbt) {
+        case CNTR_TOPE_VACIO:
+            return NULL;
+        case CNTR_REINTENTAR:
+            if (cntr_trae_primer_cliente_toma(toma,
+                                              (struct sockaddr*) &cliente)
+                                              == CNTR_ERROR)
+            *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
+                                          "error leyendo toma");
+            goto reintenta_recibir_flujo;
+        case CNTR_ERROR:
+            *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
+                                          "error leyendo toma");
+            return NULL;
     }
 
     /* Tamaño del registro */

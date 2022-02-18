@@ -37,9 +37,10 @@
 #ifndef DEFCOM_H
 #define DEFCOM_H
 
-#define CNTR_HECHO   (0)
-#define CNTR_ERROR   (-1)
-#define CNTR_DF_NULO (-1)
+#define CNTR_HECHO      (0)
+#define CNTR_ERROR      (-1)
+#define CNTR_DF_NULO    (-1)
+#define CNTR_REINTENTAR (-4)
 
 #define cntr_ltd(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -50,10 +51,13 @@
                    mensaje, (int)cabida); \
     } while(0)
 
+#ifndef T_CTRN_VERDAD
+#define T_CTRN_VERDAD
 typedef enum cntr_verdad {
-    cntr_falso = 0,
-    cntr_cierto
+    cntr_falso  = 0,
+    cntr_cierto = 1
 } t_ctrn_verdad;
+#endif
 
 typedef struct cntr_resultado {
     int cntr_errno;      /* Código de error guardado en errno (errno.h)     */
