@@ -9,6 +9,9 @@
 * Núcleo Linux.
 * Versión de `GNU Awk`, `API 2.0`.
 * Última versión de [jdva](https://github.com/Qaracas/jdva).
+* Biblioteca GNU TLS. Ficheros de desarrollo - libgnutls28-dev (>= 3.7.1-5)
+* Biblioteca GNU TLS. Utilidades en línea de comandos - gnutls-bin (>= 3.7.1-5)
+* Gestor de compilación y enlazado - pkg-config (>= 0.29.2-1)
 
 ## Instalación
 
