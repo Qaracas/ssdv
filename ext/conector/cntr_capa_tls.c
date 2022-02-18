@@ -70,6 +70,9 @@ cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls)
     gnutls_certificate_set_known_dh_params(capatls->credx509,
                                            GNUTLS_SEC_PARAM_MEDIUM);
 #endif
+
+    capatls->usándose = 1;
+
     return CNTR_HECHO;
 }
 
@@ -83,6 +86,8 @@ cntr_inicia_sesion_capa_tls_servidor(t_capa_gnutls *capatls)
     VRFC_ERROR(error,
                gnutls_init(&(capatls->sesión), GNUTLS_SERVER),
                "gnutls_init(): %s\n");
+
+    capatls->sesión_iniciada = 1;
 
     /* Prioridad de los métodos de cifrado e intercambio de claves */
     VRFC_ERROR(error,
@@ -109,7 +114,10 @@ void
 cntr_finaliza_sesion_capa_tls(t_capa_gnutls *capatls)
 {
     /* Borra la sesión y los topes que tiene asociados */
-    gnutls_deinit(capatls->sesión);
+    if (capatls->sesión_iniciada) {
+        gnutls_deinit(capatls->sesión);
+        capatls->sesión_iniciada = 0;
+    }
 }
 
 /* cntr_envia_datos_capa_tls */
@@ -136,7 +144,7 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
     BUCLE_VERIFICA(resul, gnutls_handshake(capatls->sesión));
     if (resul < 0) {
         close(df_cliente);
-        gnutls_deinit(capatls->sesión);
+        cntr_finaliza_sesion_capa_tls(capatls);
         fprintf(stderr,
                 "Dialogo TLS fallido: %s\n",
                 gnutls_strerror(resul));
@@ -162,6 +170,7 @@ cntr_liberta_capa_toma_tls(t_capa_gnutls *capatls)
     if (capatls->usándose) {
         gnutls_certificate_free_credentials(capatls->credx509);
         gnutls_priority_deinit(capatls->prioridad);
+        cntr_finaliza_sesion_capa_tls(capatls); /* No es necesario*/
         gnutls_global_deinit();
         capatls->usándose = 0;
     }
@@ -172,13 +181,15 @@ cntr_liberta_capa_toma_tls(t_capa_gnutls *capatls)
 int
 cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma)
 {
+     int resul;
     if (cliente) {
-        gnutls_bye(capatls->sesión, GNUTLS_SHUT_WR);
+        /* No esperar a que el otro lado cierre la conexión */
+        BUCLE_VERIFICA(resul, gnutls_bye(capatls->sesión, GNUTLS_SHUT_WR));
         if (close(df_toma) < 0) {
             perror("close");
             return CNTR_ERROR;
         }
-        gnutls_deinit(capatls->sesión);
+        cntr_finaliza_sesion_capa_tls(capatls);
     } else {
         if (close(df_toma) < 0) {
             perror("close");
