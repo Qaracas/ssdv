@@ -46,9 +46,7 @@ BEGIN {
 
     canalTLS = "/ired/tls/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTLS);
-    
-    # Par certificado del servidor y clave privada
-    # certtool --generate-privkey --outfile clave_privada.pem --rsa
+
     pcertcla(canalTLS, "certificado_servidor.pem", "clave_privada.pem");
     lisautor(canalTLS, "/etc/pki/tls/certs/ca-bundle.crt");
 
