@@ -1,4 +1,70 @@
-# Ejemplos de uso de la herramienta certtool
+# Ejemplos de cómo se usan las extensiones de gawk leeflujo y conector
+
+## Extensión leeflujo
+
+Permite usar gawk para leer flujos de datos en lugar de líneas delimitadas por la variable RS. En su
+lugar se introduce la variable numérica TPM (ToPe Máximo) para fijar los bytes que se quieren leer de
+un golpe.
+
+Ejecutando el ejemplo lee_flujo.awk de las siguiente forma:
+
+```bash
+(leeflujo)$ ./lee_flujo.awk lee_flujo.awk 3
+```
+
+se autoleerá a sí mismo imprimiendose por pantalla de 3 3n 3 bytes.
+
+Nuevas variables que añade leeflujo:
+
+* TMP - Tope máximo o número máximo de bytes a leer
+* LTD - Número de bytes realmente leídos
+
+## Extensión conector
+
+Algunos ejemplos de uso de la extensión conector utilizan la capa TLS para establecer conexiones seguras
+y verificables entre un cliente y un servidor.
+
+### Servidor HTTP simple sobre TCP
+
+Iniciar servidor HTTP
+
+```bash
+(conector)$ ./servidor_http_simple.awk localhost 7070
+```
+
+Conectar con servidor
+
+```bash
+(conector)$ curl -v http://localhost:7070/prueba.html
+```
+
+Conectar y apagar el servidor
+
+```bash
+(conector)$ curl -v http://localhost:7070/salir
+```
+
+### Servidor HTTP simple sobre TLS
+
+Iniciar servidor HTTPS (HTTP sobre TLS)
+
+```bash
+(conector)$ ./servidor_https_simple.awk localhost 7070
+```
+
+Conectar con servidor
+
+```bash
+(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir.html
+```
+
+Apagar servidor
+
+```bash
+curl -v --cacert conector/certificado_servidor.pem https://localhost:7070/salir
+```
+
+# Cómo usar la herramienta certtool
 
 Para ejecutar los programs de ejemplo en los cuales se usa la capa TLS
 se necesita disponer de una clave privada, un certificado de servidor y,
