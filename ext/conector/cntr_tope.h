@@ -71,7 +71,7 @@ cntr_borra_tope(t_cntr_tope *tope);
 
 ssize_t
 cntr_recibe_datos(t_capa_gnutls *capatls, int df_cliente, void *tope,
-                  size_t len);
+                  size_t bulto);
 
 /* cntr_rcbl_llena_tope --
  *

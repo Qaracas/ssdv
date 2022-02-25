@@ -73,10 +73,10 @@ struct capa_gnutls;
 typedef struct capa_gnutls t_capa_gnutls;
 
 typedef ssize_t (*rcb_datos)(t_capa_gnutls *capatls, int df_cliente,
-                             void *tope, size_t len);
+                             void *tope, size_t bulto);
 
 typedef ssize_t (*env_datos)(t_capa_gnutls *capatls, int df_cliente,
-                             const void *tope, size_t len);
+                             const void *tope, size_t bulto);
 
 /* Para cargar los datos que se envían o reciben de la toma */
 
@@ -133,7 +133,7 @@ cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
 
 ssize_t
 cntr_envia_datos(t_capa_gnutls *capatls, int df_cliente,
-                 const void *tope, size_t len);
+                 const void *tope, size_t bulto);
 
 /* cntr_envia_toma --
  *

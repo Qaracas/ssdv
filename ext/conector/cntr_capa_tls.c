@@ -50,17 +50,18 @@ cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls)
 {
     int error;
 
-    VRFC_ERROR(error, gnutls_global_init(),
-               "gnutls_global_init(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_global_init(),
+        "gnutls_global_init(): %s\n");
 
-    VRFC_ERROR(error,
-               gnutls_certificate_allocate_credentials(&(capatls->credx509)),
-               "gnutls_certificate_allocate_credentials(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_certificate_allocate_credentials(&(capatls->credx509)),
+        "gnutls_certificate_allocate_credentials(): %s\n");
 
     /* Prioridad de los cifrados y métodos de intercambio de claves */
-    VRFC_ERROR(error,
-               gnutls_priority_init(&(capatls->prioridad), NULL, NULL),
-               "gnutls_priority_init(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_priority_init(&(capatls->prioridad), NULL, NULL),
+        "gnutls_priority_init(): %s\n");
 
     /* Disponible desde GnuTLS 3.5.6. En versiones anteriores consultar:
      * gnutls_certificate_set_dh_params() */
@@ -83,21 +84,22 @@ cntr_inicia_sesion_capa_tls_servidor(t_capa_gnutls *capatls)
 {
     int error;
 
-    VRFC_ERROR(error,
-               gnutls_init(&(capatls->sesión), GNUTLS_SERVER),
-               "gnutls_init(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_init(&(capatls->sesión), GNUTLS_SERVER),
+        "gnutls_init(): %s\n");
 
     capatls->sesión_iniciada = 1;
 
     /* Prioridad de los métodos de cifrado e intercambio de claves */
-    VRFC_ERROR(error,
-               gnutls_priority_set(capatls->sesión, capatls->prioridad),
-               "gnutls_priority_set(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_priority_set(capatls->sesión, capatls->prioridad),
+        "gnutls_priority_set(): %s\n");
 
-    VRFC_ERROR(error,
-               gnutls_credentials_set(capatls->sesión, GNUTLS_CRD_CERTIFICATE,
-                                      capatls->credx509),
-               "gnutls_credentials_set(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_credentials_set(capatls->sesión,
+                               GNUTLS_CRD_CERTIFICATE,
+                               capatls->credx509),
+        "gnutls_credentials_set(): %s\n");
 
     /* No solicitar ningún certificado al cliente */
     gnutls_certificate_server_set_request(capatls->sesión,
@@ -208,12 +210,12 @@ cntr_par_clave_privada_y_certificado_tls(t_capa_gnutls *capatls,
                                          const char *fclave)
 {
     int error;
-    VRFC_ERROR(error,
-               gnutls_certificate_set_x509_key_file(capatls->credx509,
-                                                    fcertificado,
-                                                    fclave,
-                                                    GNUTLS_X509_FMT_PEM),
-               "gnutls_certificate_set_x509_key_file(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_certificate_set_x509_key_file(capatls->credx509,
+                                             fcertificado,
+                                             fclave,
+                                             GNUTLS_X509_FMT_PEM),
+        "gnutls_certificate_set_x509_key_file(): %s\n");
     return CNTR_HECHO;
 }
 
@@ -224,10 +226,10 @@ cntr_fichero_autoridades_certificadoras_tls(t_capa_gnutls *capatls,
                                             const char *fautoridades)
 {
     int error;
-    VRFC_ERROR(error,
-               gnutls_certificate_set_x509_trust_file(capatls->credx509,
-                                                      fautoridades,
-                                                      GNUTLS_X509_FMT_PEM),
-               "gnutls_certificate_set_x509_trust_file(): %s\n");
+    VERIFICA_ERROR(error,
+        gnutls_certificate_set_x509_trust_file(capatls->credx509,
+                                               fautoridades,
+                                               GNUTLS_X509_FMT_PEM),
+        "gnutls_certificate_set_x509_trust_file(): %s\n");
     return CNTR_HECHO;
 }

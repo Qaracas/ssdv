@@ -35,7 +35,7 @@
 #ifndef CAPA_TLS_H
 #define CAPA_TLS_H
 
-#define VRFC_ERROR(valret, cmd, cmdtxt) \
+#define VERIFICA_ERROR(valret, cmd, cmdtxt) \
         if ((valret = cmd) < GNUTLS_E_SUCCESS) { \
             fprintf(stderr, \
                     cmdtxt, \
