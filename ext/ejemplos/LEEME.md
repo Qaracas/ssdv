@@ -1,4 +1,4 @@
-# Ejemplos de cómo se usan las extensiones de gawk leeflujo y conector
+# Ejemplos de cómo usar las extensiones de gawk leeflujo y conector
 
 ## Extensión leeflujo
 
@@ -26,19 +26,19 @@ y verificables entre un cliente y un servidor.
 
 ### Servidor HTTP simple sobre TCP
 
-Iniciar servidor HTTP
+Iniciar servidor HTTP:
 
 ```bash
 (conector)$ ./servidor_http_simple.awk localhost 7070
 ```
 
-Conectar con servidor
+Conectar con servidor usando [curl] [1]:
 
 ```bash
 (conector)$ curl -v http://localhost:7070/prueba.html
 ```
 
-Conectar y apagar el servidor
+Conectar y apagar el servidor:
 
 ```bash
 (conector)$ curl -v http://localhost:7070/salir
@@ -52,13 +52,14 @@ Iniciar servidor HTTPS (HTTP sobre TLS)
 (conector)$ ./servidor_https_simple.awk localhost 7070
 ```
 
-Conectar con servidor
+Para conectar con servidor es necesario verificar su identidad usando su certificado raiz. Esto se puede
+hacer con [curl] [2] de la siguiente manera:
 
 ```bash
 (conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir.html
 ```
 
-Apagar servidor
+Apagar servidor:
 
 ```bash
 curl -v --cacert conector/certificado_servidor.pem https://localhost:7070/salir
@@ -101,8 +102,5 @@ periódicamente el comando
 para obtener la vigencia de su certificado y servirla a sus clientes. De esta
 forma el cliente se evita conectar con un servidor OCSP externo.
 
-## Conectar con cualquiera de los servidores de ejemplo usado TSL
-
-Consultar [verificar cerrificados SSL](https://curl.se/docs/sslcerts.html)
-para más información.
-
+[1]: https://curl.se/ "Biblioteca y herramienta de línea de comandos para transmitir datos con URLs"
+[2]: https://curl.se/docs/sslcerts.html "Obtener certificado raiz que pueda verificar el servidor remoto"
