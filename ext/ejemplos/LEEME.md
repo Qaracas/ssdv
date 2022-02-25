@@ -32,7 +32,7 @@ Iniciar servidor HTTP:
 (conector)$ ./servidor_http_simple.awk localhost 7070
 ```
 
-Conectar con servidor usando [curl] [1]:
+Conectar con servidor usando curl ([1]):
 
 ```bash
 (conector)$ curl -v http://localhost:7070/prueba.html
@@ -53,7 +53,7 @@ Iniciar servidor HTTPS (HTTP sobre TLS)
 ```
 
 Para conectar con servidor es necesario verificar su identidad usando su certificado raiz. Esto se puede
-hacer con [curl] [2] de la siguiente manera:
+hacer con curl ([2]) de la siguiente manera:
 
 ```bash
 (conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir.html
@@ -102,5 +102,5 @@ periódicamente el comando
 para obtener la vigencia de su certificado y servirla a sus clientes. De esta
 forma el cliente se evita conectar con un servidor OCSP externo.
 
-[1]: https://curl.se/ "Biblioteca y herramienta de línea de comandos para transmitir datos con URLs"
+[1]: https://curl.se/ "Biblioteca y herramienta en línea de comandos para transmitir datos con URLs"
 [2]: https://curl.se/docs/sslcerts.html "Obtener certificado raiz que pueda verificar el servidor remoto"
