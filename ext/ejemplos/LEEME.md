@@ -1,18 +1,22 @@
-# Ejemplos de cómo usar las extensiones de gawk leeflujo y conector
+# Cómo usar las extensiones de gawk leeflujo y conector
 
 ## Extensión leeflujo
 
-Permite usar gawk para leer flujos de datos en lugar de líneas delimitadas por la variable RS. En su
-lugar se introduce la variable numérica TPM (ToPe Máximo) para fijar los bytes que se quieren leer de
-un golpe.
+Permite usar gawk para leer flujos de datos, en lugar de líneas delimitadas por la variable RS. Se
+introduce la variable numérica TPM (ToPe Máximo) para fijar los bytes que se quieren leer cada vez.
 
-Ejecutando el ejemplo lee_flujo.awk de las siguiente forma:
+### Ejemplo 1: leer fichero
+
+Leer el flujo de datos proveniente de un fichero de *n* en *n* veces, siendo *n* el primer argumento
+pasado por línea de comandos.
+
+Ejecutando el ejemplo *lee_flujo.awk* de las siguiente forma:
 
 ```bash
 (leeflujo)$ ./lee_flujo.awk lee_flujo.awk 3
 ```
 
-se autoleerá a sí mismo imprimiendose por pantalla de 3 3n 3 bytes.
+se autoleerá a sí mismo imprimiendose por pantalla de 3 en 3 bytes.
 
 Nuevas variables que añade leeflujo:
 
@@ -21,48 +25,92 @@ Nuevas variables que añade leeflujo:
 
 ## Extensión conector
 
-Algunos ejemplos de uso de la extensión conector utilizan la capa TLS para establecer conexiones seguras
-y verificables entre un cliente y un servidor.
+Permite a gawk comunicarse con otros procesos a través de TCP o TLS, mediante el uso de ficheros
+especiales del estilo de los que gawk ya utiliza para
+[programar en red](https://www.gnu.org/software/gawk/manual/html_node/TCP_002fIP-Networking.html).
 
-### Servidor HTTP simple sobre TCP
+### Ejemplo 1: servidor HTTP simple sobre TCP
 
-Iniciar servidor HTTP:
+En este ejemplo se ilustra cómo comunicar dos procesos a través de una conexión
+[TCP](https://es.wikipedia.org/wiki/Protocolo_de_control_de_transmisi%C3%B3n).
+
+Iniciar servidor HTTP en un terminal:
 
 ```bash
 (conector)$ ./servidor_http_simple.awk localhost 7070
 ```
 
-Conectar con servidor usando curl ([1]):
+Conectar con servidor usando curl ([1]) desde otro terminal:
 
 ```bash
 (conector)$ curl -v http://localhost:7070/prueba.html
 ```
 
-Conectar y apagar el servidor:
+Conectar y apagar el servidor desde otro terminal:
 
 ```bash
 (conector)$ curl -v http://localhost:7070/salir
 ```
 
-### Servidor HTTP simple sobre TLS
+### Ejemplo 2: servidor HTTP ramificado sobre TCP
 
-Iniciar servidor HTTPS (HTTP sobre TLS)
+Se trata de una versión mejorada del ejemplo anterior, que incluye alta disponibilidad usando procesos
+separados para atender cada conexión de los clientes.
+
+### Ejemplo 3: servidor HTTP simple sobre TLS
+
+Este ejemplo ilustra cómo usar la extensión conector utilizando la capa
+[TLS](https://es.wikipedia.org/wiki/Seguridad_de_la_capa_de_transporte) para establecer conexiones
+seguras y verificables entre cliente y servidor.
+
+Iniciar servidor HTTPS (HTTP sobre TLS) en un terminal:
 
 ```bash
 (conector)$ ./servidor_https_simple.awk localhost 7070
 ```
 
 Para conectar con servidor es necesario verificar su identidad usando su certificado raiz. Esto se puede
-hacer con curl ([2]) de la siguiente manera:
+hacer desde otro terminal usando curl ([2]), de la siguiente manera:
+
+```bash
+(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/prueba.html
+```
+
+Conectar y apagar el servidor desde otro terminal:
+
+```bash
+(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir
+```
+
+### Ejemplo 4: servidor HTTP de doble toma (una TCP y otra TLS)
+
+En este caso se trata de un servidor que escucha por dos puertos al miesmo tiempo. Uno de los puertos
+se le pasa por línea de comandos en el primer argumento, el otro en el segundo. El primero admite
+conexiones TCP, y el segundo las admite TLS.
+
+Iniciar servidor HTTP en un terminal:
+
+```bash
+(conector)$ ./servidor_http_doble_toma.awk 6060 7070
+```
+
+Conectar al puerto TCP del servidor usando curl desde otro terminal:
+
+```bash
+(conector)$ curl -v http://localhost:6060/salir.html
+```
+
+Conectar al puerto TLS del servidor usando curl desde otro terminal:
 
 ```bash
 (conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir.html
 ```
 
-Apagar servidor:
+Conectar y apagar el servidor desde otro terminal:
 
 ```bash
-curl -v --cacert conector/certificado_servidor.pem https://localhost:7070/salir
+(conector)$ curl -v http://localhost:6060/salir
+(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir
 ```
 
 # Cómo usar la herramienta certtool
@@ -80,13 +128,13 @@ Pinchar en los siguientes vínculos para obtener más información:
 ## Generar una clave privada
 
 ```bash
-certtool --generate-privkey --outfile clave_privada.pem
+(conector)$ certtool --generate-privkey --outfile clave_privada.pem
 ```
 
 ## Generar un certificado autofirmado de servidor
 
 ```bash
-certtool --generate-self-signed --load-privkey clave_privada.pem --outfile certificado_servidor.pem
+(conector)$ certtool --generate-self-signed --load-privkey clave_privada.pem --outfile certificado_servidor.pem
 ```
 
 ## Solicitud de estado OCSP (siglas en inglés de Protocolo de Estado de Certificado En línea)
