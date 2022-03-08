@@ -36,17 +36,18 @@
 #define CAPA_TLS_H
 
 #define VERIFICA_ERROR(valret, cmd, cmdtxt) \
-        if ((valret = cmd) < GNUTLS_E_SUCCESS) { \
-            fprintf(stderr, \
-                    cmdtxt, \
-                    gnutls_strerror(valret)); \
-            return CNTR_ERROR; \
-        }
+    if ((valret = cmd) < GNUTLS_E_SUCCESS) { \
+        cntr_error(valret, \
+                   cntr_msj_error("%s %s", \
+                                  cmdtxt, \
+                                  gnutls_strerror(valret))); \
+        return CNTR_ERROR; \
+    }
 
 #define BUCLE_VERIFICA(valret, cmd) \
-        do { \
-                valret = cmd; \
-        } while(valret == GNUTLS_E_AGAIN || valret == GNUTLS_E_INTERRUPTED)
+    do { \
+        valret = cmd; \
+    } while(valret == GNUTLS_E_AGAIN || valret == GNUTLS_E_INTERRUPTED)
 
 struct gnutls_session_int;
 typedef struct gnutls_session_int *gnutls_session_t;

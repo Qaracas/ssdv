@@ -32,6 +32,8 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -72,8 +74,15 @@ es_dirip(char *ip, struct addrinfo *criterios)
 int
 cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma)
 {
-    if (nodo == NULL || puerto == NULL || toma == NULL)
+    extern int errno;
+    cntr_limpia_error(errno);
+
+    if (nodo == NULL || puerto == NULL || toma == NULL) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_infred()",
+                             "alguna información de red nula"));
         return CNTR_ERROR;
+    }
 
     int r;
     struct addrinfo criterios;
@@ -88,8 +97,12 @@ cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma)
 
     if (strcmp(nodo, "0") == 0) {
         criterios.ai_flags = AI_PASSIVE; /* Dirección IP comodín */
-        if ((r = getaddrinfo(NULL, puerto, &criterios, &toma->infred)) != 0)
+        if ((r = getaddrinfo(NULL, puerto, &criterios, &toma->infred)) != 0) {
+            cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                                 "cntr_nueva_infred()",
+                                 gai_strerror(r)));
             return CNTR_ERROR;
+        }
         toma->local = cntr_cierto;
         return CNTR_HECHO;
     }
@@ -97,8 +110,9 @@ cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma)
      /* Evitar a 'getaddrinfo' resolver nombre */
     es_dirip(nodo, &criterios);
     if ((r = getaddrinfo(nodo, puerto, &criterios, &toma->infred)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(r));
-        perror("Error: ");
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_infred()",
+                             gai_strerror(r)));
         return CNTR_ERROR;
     }
 
@@ -106,8 +120,12 @@ cntr_nueva_infred(char *nodo, char *puerto, t_cntr_toma_es *toma)
     struct ifaddrs *stomas_locales, *i;
     struct addrinfo *j;
 
-    if (getifaddrs(&stomas_locales) == -1)
+    if (getifaddrs(&stomas_locales) < 0) {
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_nueva_infred()",
+                             strerror(errno)));
         return CNTR_ERROR;
+    }
 
     void *resul, *local;
     j = toma->infred;

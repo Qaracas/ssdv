@@ -51,6 +51,30 @@
                    mensaje, (int)cabida); \
     } while(0)
 
+#define cntr_limpia_error_simple() \
+    do { \
+        extern t_cntr_error cntr_error; \
+        cntr_error.número = 0; \
+        if (cntr_error.descripción != NULL) \
+            free(cntr_error.descripción); \
+    } while(0)
+
+#define cntr_limpia_error(numerror) \
+    do { \
+        extern t_cntr_error cntr_error; \
+        numerror = 0; \
+        cntr_error.número = 0; \
+        if (cntr_error.descripción != NULL) \
+            free(cntr_error.descripción); \
+    } while(0)
+
+#define cntr_error(numerror, descripción_error) \
+    do { \
+        extern t_cntr_error cntr_error; \
+        cntr_error.número = numerror; \
+        cntr_error.descripción = descripción_error; \
+    } while(0)
+
 #ifndef T_CTRN_VERDAD
 #define T_CTRN_VERDAD
 typedef enum cntr_verdad {
@@ -59,20 +83,10 @@ typedef enum cntr_verdad {
 } t_ctrn_verdad;
 #endif
 
-typedef struct cntr_resultado {
-    int cntr_errno;      /* Código de error guardado en errno (errno.h)     */
-    char *cntr_strerror; /* Texto devuelto por strerror(errno)              */
-    int codigo;          /* Código con el resultado de una función          */
-    char *texto_error;   /* Descripción del error si resultado = CNTR_ERROR */
-} t_cntr_resultado;
-
-/* cntr_nuevo_resultado --
- *
- * Crea nuevo resultado relativo a la ejecución de una función
- */
-
-t_cntr_resultado *
-cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error);
+typedef struct cntr_error {
+    int  número;       /* Número de error       */
+    char *descripción; /* Descripción del error */
+} t_cntr_error;
 
 /* cntr_msj_error --
  *

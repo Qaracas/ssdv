@@ -32,7 +32,9 @@
  * not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -48,8 +50,14 @@
 int
 cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope)
 {
-    if (tope == NULL)
+    cntr_limpia_error_simple();
+
+    if (tope == NULL) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nuevo_tope()",
+                             "tope nulo"));
         return CNTR_ERROR;
+    }
 
     size_t v_bulto;
 
@@ -67,10 +75,7 @@ cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope)
     (*tope)->ptrreg = 0;
     bzero((*tope)->datos, v_bulto);
 
-    if (*tope == NULL)
-        return CNTR_ERROR;
-    else
-        return CNTR_HECHO;
+    return CNTR_HECHO;
 }
 
 /* cntr_borra_tope */
@@ -90,8 +95,16 @@ ssize_t
 cntr_recibe_datos(t_capa_gnutls *capatls, int df_cliente, void *tope,
                   size_t bulto)
 {
+    extern int errno;
     (void) capatls;
-    return recv(df_cliente, tope, bulto, 0);
+    ssize_t resul;
+
+    cntr_limpia_error(errno);
+    if ((resul = recv(df_cliente, tope, bulto, 0)) < 0)
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_recibe_datos()",
+                             strerror(errno)));
+    return resul;
 }
 
 /* cntr_rcbl_llena_tope */
@@ -111,7 +124,6 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
 
     switch (tope->ldatos) {
         case CNTR_ERROR:
-            perror("recv"); /* ERROR: Si es TLS esto no vale */
             return CNTR_ERROR;
         case CNTR_REINTENTAR:
             return CNTR_REINTENTAR;
@@ -152,7 +164,6 @@ cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
 
     switch (tope->ldatos) {
         case CNTR_ERROR:
-            perror("recv"); /* ERROR: Si es TLS esto no vale */
             return CNTR_ERROR;
         case CNTR_REINTENTAR:
             return CNTR_REINTENTAR;

@@ -60,8 +60,14 @@
 t_cntr_toma_es *
 cntr_nueva_toma(t_cntr_ruta *ruta)
 {
-    if (ruta == NULL)
+    cntr_limpia_error_simple();
+
+    if (ruta == NULL) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_toma()",
+                             "ruta nula"));
         return NULL;
+    }
 
     cntr_asigmem(ruta->toma, t_cntr_toma_es *,
                  sizeof(t_cntr_toma_es), "cntr_nueva_toma");
@@ -130,7 +136,16 @@ cntr_envia_datos(t_capa_gnutls *capatls, int df_cliente,
                  const void *tope, size_t bulto)
 {
     (void) capatls;
-    return send(df_cliente, tope, bulto, 0);
+    extern int errno;
+    ssize_t resul;
+
+    cntr_limpia_error(errno);
+    if ((resul = send(df_cliente, tope, bulto, 0)) < 0)
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_envia_datos()",
+                             strerror(errno)));
+
+    return resul;
 }
 
 /* cntr_envia_a_toma */
@@ -139,7 +154,6 @@ int
 cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t bulto)
 {
     if ((*toma->envia)(toma->gtls, toma->cliente, datos, bulto) < 0) {
-        perror("send");
         return CNTR_ERROR;
     }
     return CNTR_HECHO;
@@ -148,16 +162,16 @@ cntr_envia_toma(t_cntr_toma_es *toma, const void *datos, size_t bulto)
 /* cntr_recibe_toma */
 
 char *
-cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       t_cntr_resultado **resul)
+cntr_recibe_linea_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr)
 {
     int recbt;
-    struct sockaddr_in cliente;
+    struct sockaddr cliente;
+    extern int errno;
     t_cntr_tope *tope = toma->pila->tope;
 
     if (tope->ldatos == 0) {
 reintenta_recibir_linea:
-        errno = 0;
+        cntr_limpia_error(errno);
         recbt = cntr_rcbl_llena_tope(toma);
 
         switch (recbt) {
@@ -166,15 +180,11 @@ reintenta_recibir_linea:
             case CNTR_TOPE_VACIO:
                 return NULL;
             case CNTR_REINTENTAR:
-                if (cntr_trae_primer_cliente_toma(toma,
-                                                  (struct sockaddr*) &cliente)
-                                                  == CNTR_ERROR)
-                *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                                              "error leyendo toma");
+                if (   cntr_trae_primer_cliente_toma(toma, &cliente)
+                    == CNTR_ERROR)
+                    return NULL;
                 goto reintenta_recibir_linea;
             case CNTR_ERROR:
-                *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                                              "error leyendo toma");
                 return NULL;
         }
 
@@ -190,8 +200,9 @@ reintenta_recibir_linea:
 
     if (*sdrt == NULL) {
         if (tope->ptrreg == 0) {
-            *resul = cntr_nuevo_resultado(0, CNTR_ERROR,
-                                          "desbordamiento de pila");
+            cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                                 "cntr_recibe_linea_toma()",
+                                 "desbordamiento de pila"));
             return NULL;
         }
         *tsr = 0;
@@ -201,7 +212,7 @@ reintenta_recibir_linea:
                (tope->ldatos + tope->ptareg) - tope->ptrreg);
         tope->ptrreg = (tope->ldatos + tope->ptareg) - tope->ptrreg;
         tope->ldatos = 0;
-        return cntr_recibe_linea_toma(toma, sdrt, tsr, resul);
+        return cntr_recibe_linea_toma(toma, sdrt, tsr);
     }
 
     /* Tamaño del registro */
@@ -213,30 +224,27 @@ reintenta_recibir_linea:
 /* cntr_recibe_flujo_toma */
 
 char *
-cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                       t_cntr_resultado **resul)
+cntr_recibe_flujo_toma(t_cntr_toma_es *toma, char **sdrt, size_t *tsr)
 {
     int recbt;
-    struct sockaddr_in cliente;
+    struct sockaddr cliente;
+    extern int errno;
     t_cntr_tope *tope = toma->pila->tope;
 
 reintenta_recibir_flujo:
-    errno = 0;
+    cntr_limpia_error(errno);
     recbt = cntr_rcbf_llena_tope(toma);
 
     switch (recbt) {
         case CNTR_TOPE_VACIO:
             return NULL;
         case CNTR_REINTENTAR:
-            if (cntr_trae_primer_cliente_toma(toma,
-                                              (struct sockaddr*) &cliente)
-                                              == CNTR_ERROR)
-            *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                                          "error leyendo toma");
+            if (   cntr_trae_primer_cliente_toma(toma, &cliente)
+                == CNTR_ERROR) {
+                return NULL;
+            }
             goto reintenta_recibir_flujo;
         case CNTR_ERROR:
-            *resul = cntr_nuevo_resultado(errno, CNTR_ERROR,
-                                          "error leyendo toma");
             return NULL;
     }
 
@@ -255,10 +263,17 @@ reintenta_recibir_flujo:
 int
 cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
 {
+    extern int errno;
+    cntr_limpia_error(errno);
+
     if (   toma == NULL || toma->infred == NULL
         || toma->servidor != CNTR_DF_NULO
-        || toma->local == cntr_falso)
+        || toma->local == cntr_falso) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_pon_a_escuchar_toma()",
+                             "toma nula o no local"));
         return CNTR_ERROR;
+    }
 
     if (   (toma->gtls != NULL)
         && (   cntr_inicia_globalmente_capa_tls_servidor(toma->gtls)
@@ -283,13 +298,17 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
     }
 
     if (rp == NULL) {
-        perror("bind");
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_pon_a_escuchar_toma()",
+                             strerror(errno)));
         return CNTR_ERROR;
     }
 
     /* Poner toma en modo escucha */
     if (listen(toma->servidor, CNTR_MAX_PENDIENTES) < 0) {
-        perror("listen");
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_pon_a_escuchar_toma()",
+                             strerror(errno)));
         return CNTR_ERROR;
     }
 
@@ -297,7 +316,9 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
     /* Sonda: df que hace referencia a la nueva instancia de epoll */
     toma->sonda->dfsd = epoll_create1(0);
     if (toma->sonda->dfsd == -1) {
-        perror("epoll_create1");
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_pon_a_escuchar_toma()",
+                             strerror(errno)));
         return CNTR_ERROR;
     }
 
@@ -306,7 +327,9 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
     toma->sonda->evt->data->fd = toma->servidor;
     if (epoll_ctl(toma->sonda->dfsd, EPOLL_CTL_ADD, toma->servidor,
         &(toma->sonda->evt)) == -1) {
-        perror("epoll_ctl");
+        cntr_error(errno, cntr_msj_error("%s %s",
+                             "cntr_pon_a_escuchar_toma()",
+                             strerror(errno)));
         return CNTR_ERROR;
     }
 #endif
@@ -321,6 +344,9 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
 int
 cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
 {
+    extern int errno;
+    cntr_limpia_error(errno);
+
     if (   toma == NULL
         || toma->servidor == CNTR_DF_NULO )
         return CNTR_ERROR;
@@ -336,7 +362,9 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
         toma->sonda->ndsf = epoll_wait(toma->sonda->dfsd, toma->sonda->eva,
                                        CNTR_MAX_EVENTOS, -1);
         if (toma->sonda->ndsf == -1) {
-            perror("epoll_wait");
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                 "cntr_trae_primer_cliente_toma()",
+                                 strerror(errno)));
             return CNTR_ERROR;
         }
         for (toma->sonda->ctdr = 0; toma->sonda->ctdr < toma->sonda->ndsf;
@@ -348,7 +376,9 @@ atiende_resto_eventos:
                 toma->cliente = accept(toma->servidor, cliente, &lnt);
                 /* ¿Es cliente? */
                 if (toma->cliente < 0) {
-                    perror("accept");
+                    cntr_error(errno, cntr_msj_error("%s %s",
+                                         "cntr_trae_primer_cliente_toma()",
+                                         strerror(errno)));
                     return CNTR_ERROR;
                 }
                 /* Sí, es cliente */
@@ -357,7 +387,9 @@ atiende_resto_eventos:
                 toma->sonda->evt->data->fd = toma->cliente;
                 if (epoll_ctl(toma->sonda->dfsd, EPOLL_CTL_ADD, toma->cliente,
                               &(toma->sonda->evt)) == -1) {
-                    perror("epoll_ctl");
+                    cntr_error(errno, cntr_msj_error("%s %s",
+                                         "cntr_trae_primer_cliente_toma()",
+                                         strerror(errno)));
                     return CNTR_ERROR;
                 }
             } else {
@@ -375,9 +407,16 @@ sal_y_usa_el_df:
 int
 cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
 {
+    extern int errno;
+    cntr_limpia_error(errno);
+
     if (   toma == NULL
-        || toma->servidor == CNTR_DF_NULO )
+        || toma->servidor == CNTR_DF_NULO ) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                                 "cntr_trae_primer_cliente_toma()",
+                                 "toma o descriptor de servidor nulo"));
         return CNTR_ERROR;
+    }
 
     socklen_t lnt = (socklen_t) sizeof(*cliente);
     fd_set lst_df_sondear_lect, lst_df_sondear_escr;
@@ -392,20 +431,25 @@ cntr_trae_primer_cliente_toma(t_cntr_toma_es *toma, struct sockaddr *cliente)
         /* Esperar a que los df estén listos para hacer operaciones de E/S */
         if (select(FD_SETSIZE, &lst_df_sondear_lect, &lst_df_sondear_escr,
                    NULL, NULL) < 0) {
-            perror("select");
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                     "cntr_trae_primer_cliente_toma()",
+                                     strerror(errno)));
             return CNTR_ERROR;
         }
         /* Atender tomas con eventos de entrada pendientes */
         if (FD_ISSET(toma->servidor, &lst_df_sondear_lect)) {
             if (   (toma->gtls != NULL)
                 && (   cntr_inicia_sesion_capa_tls_servidor(toma->gtls)
-                    != CNTR_HECHO))
+                    != CNTR_HECHO)) {
                 return CNTR_ERROR;
+            }
             /* Extraer primera conexión de la cola de conexiones */
             toma->cliente = accept(toma->servidor, cliente, &lnt);
             /* ¿Es cliente? */
             if (toma->cliente < 0) {
-                perror("accept");
+                cntr_error(errno, cntr_msj_error("%s %s",
+                                         "cntr_trae_primer_cliente_toma()",
+                                         strerror(errno)));
                 return CNTR_ERROR;
             }
             /* Sí, es cliente */
@@ -447,13 +491,21 @@ cntr_cierra_toma_servidor(t_cntr_toma_es *toma, int forzar)
 int
 cntr_cierra_toma(t_cntr_toma_es *toma, int df_toma, int cliente, int forzar)
 {
+    extern int errno;
+    cntr_limpia_error(errno);
+
     /* Forzar cierre y evitar (TIME_WAIT) */
     if (forzar) {
         struct linger so_linger;
         so_linger.l_onoff  = 1;
         so_linger.l_linger = 0;
-        setsockopt(df_toma, SOL_SOCKET, SO_LINGER,
-                   &so_linger, sizeof(so_linger));
+        if (setsockopt(df_toma, SOL_SOCKET, SO_LINGER, &so_linger,
+                       sizeof(so_linger)) < 0) {
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                             "cntr_cierra_toma()",
+                                             strerror(errno)));
+            return CNTR_ERROR;
+        }
     }
     if (toma->gtls != NULL) {
         if (cntr_cierra_toma_tls(toma->gtls, cliente, df_toma) < 0) {
@@ -461,7 +513,9 @@ cntr_cierra_toma(t_cntr_toma_es *toma, int df_toma, int cliente, int forzar)
         }
     } else {
         if (close(df_toma) < 0) {
-            perror("cierra");
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                             "cntr_cierra_toma()",
+                                             strerror(errno)));
             return CNTR_ERROR;
         }
     }

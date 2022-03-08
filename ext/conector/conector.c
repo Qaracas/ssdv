@@ -64,8 +64,7 @@ int plugin_is_GPL_compatible;
 
 /* Definiciones y variables globales */
 
-typedef char * (*recibe_toma)(t_cntr_toma_es *toma, char **sdrt, size_t *tsr,
-                              t_cntr_resultado **resul);
+typedef char * (*recibe_toma)(t_cntr_toma_es *toma, char **sdrt, size_t *tsr);
 
 static t_cntr_ruta *rt;    /* Ruta de conexión en uso                       */
 static recibe_toma recibe; /* Puntero a función que recibe datos de la toma */
@@ -114,12 +113,12 @@ f_interna_acaba_toma(int nargs)
     /* Sólo acepta 1 argumento */
     if (nargs != 1) {
         lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
-        return (1);
+        return CNTR_ERROR;
     }
 
     if (! get_argument(0, AWK_STRING, &nombre)) {
         lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
-        return (1);
+        return CNTR_ERROR;
     }
 
     const char *nombre_ruta = (const char *) nombre.str_value.str;
@@ -133,10 +132,10 @@ f_interna_acaba_toma(int nargs)
 
     if (rt == NULL) {
         lintwarn(ext_id, "acabasrv: toma de datos inexistente");
-        return (1);
+        return CNTR_ERROR;
     }
 
-    return (0);
+    return CNTR_HECHO;
 }
 
 /**
@@ -153,10 +152,10 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
               struct awk_ext_func *desusado)
 {
     (void) desusado;
-
     awk_value_t nombre, valor_tpm, valor_rs;
     extern t_cntr_ruta *rt;
     extern recibe_toma recibe;
+    extern t_cntr_error cntr_error;
 
     /* Sólo acepta 1 argumento */
     if (nargs != 1)
@@ -179,7 +178,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
 
     if (cntr_nueva_ruta(nombre_ruta, &rt) == CNTR_ERROR) {
         cntr_borra_ruta(rt);
-        fatal(ext_id, "creatoma: error creando ruta");
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "creatoma:",
+                                     cntr_error.descripción));
     }
 
     /* Fuera de ssdv esto no sería un error */
@@ -189,7 +190,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
     }
 
     if (cntr_nueva_toma(rt) == NULL)
-        fatal(ext_id, "creatoma: error creando toma de datos");
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "creatoma:",
+                                     cntr_error.descripción));
 
     if (!(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)))
         fatal(ext_id, "creatoma: error leyendo variable TPM");
@@ -209,16 +212,21 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
         recibe = &cntr_recibe_flujo_toma;
 
     cntr_nueva_estructura_datos_toma(rt->toma, rs, tpm);
+    if (cntr_error.número < 0)
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "creatoma:",
+                                     cntr_error.descripción));
 
     if (cntr_nueva_infred(rt->nodo_local, rt->puerto_local,
                           rt->toma) == CNTR_ERROR)
-        fatal(ext_id, "creatoma: error extrayendo información de red");
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "creatoma:",
+                                     cntr_error.descripción));
 
     if (cntr_pon_a_escuchar_toma(rt->toma) == CNTR_ERROR)
-        fatal(ext_id,
-              cntr_msj_error("%s %s",
-                             "creatoma: error poniendo a escuchar nodo",
-                             rt->nodo_local));
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "creatoma:",
+                                     cntr_error.descripción));
 
     if (cntr_pon_ruta_en_serie(rt) == NULL) {
         cntr_borra_ruta(rt);
@@ -238,7 +246,6 @@ haz_destruye_toma(int nargs, awk_value_t *resultado,
                   struct awk_ext_func *desusado)
 {
     (void) desusado;
-
     awk_value_t nombre;
     extern t_cntr_ruta *rt;
 
@@ -277,12 +284,15 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
                    struct awk_ext_func *desusado)
 {
     (void) desusado;
+    extern t_cntr_error cntr_error;
 
-    if (f_interna_acaba_toma(nargs) != 0)
+    if (f_interna_acaba_toma(nargs) < 0)
         return make_number(-1, resultado);
 
     if (cntr_cierra_toma_servidor(rt->toma, 0) == CNTR_ERROR)
-        lintwarn(ext_id, "acabasrv: error cerrando toma");
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                                        "acabasrv:",
+                                        cntr_error.descripción));
 
     return make_number(0, resultado);
 }
@@ -297,12 +307,15 @@ haz_acaba_toma_cli(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 {
     (void) desusado;
+    extern t_cntr_error cntr_error;
 
-    if (f_interna_acaba_toma(nargs) != 0)
+    if (f_interna_acaba_toma(nargs) < 0)
         return make_number(-1, resultado);
 
     if (cntr_cierra_toma_cliente(rt->toma, 0) == CNTR_ERROR)
-        lintwarn(ext_id, "acabacli: error cerrando toma con cliente");
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                                        "acabacli:",
+                                        cntr_error.descripción));
 
     return make_number(0, resultado);
 }
@@ -317,9 +330,9 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 {
     (void) desusado;
-
     awk_value_t valorarg;
     extern t_cntr_ruta *rt;
+    extern t_cntr_error cntr_error;
 
     /* Sólo acepta 2 argumentos como máximo */
     if (nargs < 1 || nargs > 2)
@@ -342,7 +355,9 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado,
     if (   cntr_trae_primer_cliente_toma(rt->toma,
                                          (struct sockaddr*) &cliente)
         == CNTR_ERROR)
-        fatal(ext_id, "traepcli: error escuchando toma de datos");
+        fatal(ext_id, cntr_msj_error("%s %s",
+                                     "traepcli:",
+                                     cntr_error.descripción));
 
     /* Anunciar cliente */
     if (nargs == 2) {
@@ -532,17 +547,18 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
 
     extern t_cntr_ruta *rt;
     extern recibe_toma recibe;
-    t_cntr_resultado *resul = NULL;
+    extern t_cntr_error cntr_error;
 
-    *out = (*recibe)(rt->toma, rt_start, rt_len, &resul);
+    cntr_error.número = 0;
+    *out = (*recibe)(rt->toma, rt_start, rt_len);
 
-    if (resul != NULL && resul->codigo == CNTR_ERROR)
+    if (cntr_error.número < 0)
     {
-        *errcode = resul->cntr_errno;
+        *errcode = cntr_error.número;
         update_ERRNO_int(*errcode);
         fatal(ext_id, cntr_msj_error("%s %s",
                                      "conector_recibe_datos:",
-                                     resul->texto_error));
+                                     cntr_error.descripción));
     }
 
     return rt->toma->pila->lgtreg;
@@ -560,9 +576,12 @@ conector_envia_datos(const void *tope, size_t bulto, size_t cuenta, FILE *pf,
     (void) pf;
     (void) opaco;
     extern t_cntr_ruta *rt;
+    extern t_cntr_error cntr_error;
 
     if (cntr_envia_toma(rt->toma, tope, (bulto * cuenta)) == CNTR_ERROR) {
-        lintwarn(ext_id, "conector_envia_datos: error enviado registro");
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                                        "conector_envia_datos:",
+                                        cntr_error.descripción));
         return EOF;
     }
 

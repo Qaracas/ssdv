@@ -38,30 +38,7 @@
 
 #include "cntr_defcom.h"
 
-/* cntr_nuevo_resultado */
-
-t_cntr_resultado *
-cntr_nuevo_resultado(int cntr_errno, int codigo, char *texto_error)
-{
-    if (codigo == CNTR_ERROR && texto_error == NULL)
-        return NULL;
-
-    t_cntr_resultado *resultado;
-
-    cntr_asigmem(resultado, t_cntr_resultado *,
-                 sizeof(t_cntr_resultado), "cntr_nuevo_resultado");
-
-    if (cntr_errno != 0) {
-        resultado->cntr_errno = cntr_errno;
-        resultado->cntr_strerror = strerror(cntr_errno);
-    }
-
-    resultado->codigo = codigo;
-    if (texto_error != NULL)
-        resultado->texto_error = texto_error;
-
-    return resultado;
-}
+t_cntr_error cntr_error = {0, NULL};
 
 /* cntr_msj_error */
 

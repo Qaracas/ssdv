@@ -53,7 +53,7 @@
  *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
  *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
  */
-int
+static int
 procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
     if (   nombre == NULL
@@ -64,8 +64,12 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
         || caracter_fin(nombre) == CNTR_ERROR
         || caracter_ini(nombre) != '/'
         || caracter_fin(nombre) == '/'
-       )
+       ) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_ruta()",
+                             "nombre de ruta malformado"));
         return CNTR_ERROR;
+    }
 
     char *v_nombre;
     cntr_asigmem(v_nombre, char *,
@@ -87,8 +91,12 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
         || atoi(campo[3]) < 0
         || strcmp(campo[4], "0") != 0
         || strcmp(campo[5], "0") != 0
-       )
+       ) {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_ruta()",
+                             "nombre de ruta incorrecto"));
         return CNTR_ERROR;
+    }
 
     (*ruta)->tipo = strdup(campo[0]);
     (*ruta)->protocolo = strdup(campo[1]);
@@ -112,6 +120,8 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 int
 cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
+    cntr_limpia_error_simple();
+
     cntr_asigmem(*ruta, t_cntr_ruta *,
                  sizeof(t_cntr_ruta),
                  "cntr_nueva_ruta");

@@ -34,6 +34,7 @@
 
 #define _GNU_SOURCE
 
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -48,20 +49,21 @@
 int
 cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls)
 {
-    int error;
+    int resul;
+    cntr_limpia_error(resul);
 
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_global_init(),
-        "gnutls_global_init(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_certificate_allocate_credentials(&(capatls->credx509)),
-        "gnutls_certificate_allocate_credentials(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
     /* Prioridad de los cifrados y métodos de intercambio de claves */
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_priority_init(&(capatls->prioridad), NULL, NULL),
-        "gnutls_priority_init(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
     /* Disponible desde GnuTLS 3.5.6. En versiones anteriores consultar:
      * gnutls_certificate_set_dh_params() */
@@ -82,24 +84,25 @@ cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls)
 int
 cntr_inicia_sesion_capa_tls_servidor(t_capa_gnutls *capatls)
 {
-    int error;
+    int resul;
+    cntr_limpia_error(resul);
 
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_init(&(capatls->sesión), GNUTLS_SERVER),
-        "gnutls_init(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
     capatls->sesión_iniciada = 1;
 
     /* Prioridad de los métodos de cifrado e intercambio de claves */
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_priority_set(capatls->sesión, capatls->prioridad),
-        "gnutls_priority_set(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
-    VERIFICA_ERROR(error,
+    VERIFICA_ERROR(resul,
         gnutls_credentials_set(capatls->sesión,
                                GNUTLS_CRD_CERTIFICATE,
                                capatls->credx509),
-        "gnutls_credentials_set(): %s\n");
+        "cntr_inicia_sesion_capa_tls_servidor()");
 
     /* No solicitar ningún certificado al cliente */
     gnutls_certificate_server_set_request(capatls->sesión,
@@ -129,7 +132,18 @@ cntr_envia_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente,
                           const void *tope, size_t bulto)
 {
     (void) df_cliente;
-    return gnutls_record_send(capatls->sesión, tope, bulto);
+    int resul;
+    cntr_limpia_error(resul);
+
+    BUCLE_VERIFICA(resul, gnutls_record_send(capatls->sesión, tope, bulto));
+    if (resul < 0) {
+        cntr_error(resul, cntr_msj_error("%s %s",
+                             "cntr_envia_datos_capa_tls()",
+                             gnutls_strerror(resul)));
+        return CNTR_ERROR;
+    }
+
+    return resul;
 }
 
 /* cntr_recibe_datos_capa_tls */
@@ -139,6 +153,8 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
                            size_t bulto)
 {
     int resul;
+    cntr_limpia_error(resul);
+
     /* Asocia nueva toma del cliente a la sesión TLS */
     gnutls_transport_set_int(capatls->sesión, df_cliente);
 
@@ -155,10 +171,10 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
 
     BUCLE_VERIFICA(resul, gnutls_record_recv(capatls->sesión, tope, bulto));
     if (resul < 0) {
-        fprintf(stderr,
-                "gnutls_record_recv(): %s\n",
-                gnutls_strerror(resul));
-         return CNTR_ERROR;
+        cntr_error(resul, cntr_msj_error("%s %s",
+                             "cntr_recibe_datos_capa_tls()",
+                             gnutls_strerror(resul)));
+        return CNTR_ERROR;
     }
 
     return resul;
@@ -183,18 +199,31 @@ cntr_liberta_capa_toma_tls(t_capa_gnutls *capatls)
 int
 cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma)
 {
-     int resul;
+    int resul;
+    extern int errno;
+    cntr_limpia_error(errno);
+
     if (cliente) {
         /* No esperar a que el otro lado cierre la conexión */
         BUCLE_VERIFICA(resul, gnutls_bye(capatls->sesión, GNUTLS_SHUT_WR));
+        if (resul < 0) {
+            cntr_error(resul, cntr_msj_error("%s %s",
+                                             "cntr_cierra_toma_tls()",
+                                             gnutls_strerror(resul)));
+            return CNTR_ERROR;
+        }
         if (close(df_toma) < 0) {
-            perror("close");
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                             "cntr_cierra_toma_tls()",
+                                             strerror(errno)));
             return CNTR_ERROR;
         }
         cntr_finaliza_sesion_capa_tls(capatls);
     } else {
         if (close(df_toma) < 0) {
-            perror("close");
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                             "cntr_cierra_toma_tls()",
+                                             strerror(errno)));
             return CNTR_ERROR;
         }
         cntr_liberta_capa_toma_tls(capatls);
@@ -209,13 +238,13 @@ cntr_par_clave_privada_y_certificado_tls(t_capa_gnutls *capatls,
                                          const char *fcertificado,
                                          const char *fclave)
 {
-    int error;
-    VERIFICA_ERROR(error,
+    int resul;
+    VERIFICA_ERROR(resul,
         gnutls_certificate_set_x509_key_file(capatls->credx509,
                                              fcertificado,
                                              fclave,
                                              GNUTLS_X509_FMT_PEM),
-        "gnutls_certificate_set_x509_key_file(): %s\n");
+        "cntr_par_clave_privada_y_certificado_tls()");
     return CNTR_HECHO;
 }
 
@@ -225,11 +254,11 @@ int
 cntr_fichero_autoridades_certificadoras_tls(t_capa_gnutls *capatls,
                                             const char *fautoridades)
 {
-    int error;
-    VERIFICA_ERROR(error,
+    int resul;
+    VERIFICA_ERROR(resul,
         gnutls_certificate_set_x509_trust_file(capatls->credx509,
                                                fautoridades,
                                                GNUTLS_X509_FMT_PEM),
-        "gnutls_certificate_set_x509_trust_file(): %s\n");
+        "cntr_fichero_autoridades_certificadoras_tls()");
     return CNTR_HECHO;
 }
