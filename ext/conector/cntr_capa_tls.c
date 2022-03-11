@@ -44,39 +44,55 @@
 #include "cntr_defcom.h"
 #include "cntr_capa_tls.h"
 
-/* cntr_inicia_globalmente_capa_tls_servidor */
+/* cntr_arranque_global_capa_tls */
 
 int
-cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls)
+cntr_arranque_global_capa_tls(t_capa_gnutls *capatls)
 {
     int resul;
     cntr_limpia_error(resul);
 
     VERIFICA_ERROR(resul,
         gnutls_global_init(),
-        "cntr_inicia_sesion_capa_tls_servidor()");
+        "cntr_arranque_global_capa_tls()");
 
     VERIFICA_ERROR(resul,
         gnutls_certificate_allocate_credentials(&(capatls->credx509)),
-        "cntr_inicia_sesion_capa_tls_servidor()");
+        "cntr_arranque_global_capa_tls()");
 
     /* Prioridad de los cifrados y métodos de intercambio de claves */
     VERIFICA_ERROR(resul,
         gnutls_priority_init(&(capatls->prioridad), NULL, NULL),
-        "cntr_inicia_sesion_capa_tls_servidor()");
+        "cntr_arranque_global_capa_tls()");
 
     /* Disponible desde GnuTLS 3.5.6. En versiones anteriores consultar:
      * gnutls_certificate_set_dh_params() */
 #if GNUTLS_VERSION_NUMBER >= 0x030506
     /* Configura parámetros Diffie-Hellman para que los use un servidor 
        con certificado*/
-    gnutls_certificate_set_known_dh_params(capatls->credx509,
-                                           GNUTLS_SEC_PARAM_MEDIUM);
+    VERIFICA_ERROR(resul,
+        gnutls_certificate_set_known_dh_params(capatls->credx509,
+                                               GNUTLS_SEC_PARAM_MEDIUM),
+        "cntr_arranque_global_capa_tls()");
 #endif
 
     capatls->usándose = 1;
 
     return CNTR_HECHO;
+}
+
+/* cntr_parada_global_capa_tls */
+
+void
+cntr_parada_global_capa_tls(t_capa_gnutls *capatls)
+{
+    if (   capatls == NULL
+        || capatls->usándose) {
+        gnutls_certificate_free_credentials(capatls->credx509);
+        gnutls_priority_deinit(capatls->prioridad);
+        gnutls_global_deinit();
+        capatls->usándose = 0;
+    }
 }
 
 /* cntr_inicia_sesion_capa_tls_servidor */
@@ -119,7 +135,8 @@ void
 cntr_finaliza_sesion_capa_tls(t_capa_gnutls *capatls)
 {
     /* Borra la sesión y los topes que tiene asociados */
-    if (capatls->sesión_iniciada) {
+    if (   capatls == NULL
+        || capatls->sesión_iniciada) {
         gnutls_deinit(capatls->sesión);
         capatls->sesión_iniciada = 0;
     }
@@ -180,20 +197,6 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
     return resul;
 }
 
-/* cntr_liberta_capa_toma_tls */
-
-void
-cntr_liberta_capa_toma_tls(t_capa_gnutls *capatls)
-{
-    if (capatls->usándose) {
-        gnutls_certificate_free_credentials(capatls->credx509);
-        gnutls_priority_deinit(capatls->prioridad);
-        cntr_finaliza_sesion_capa_tls(capatls); /* No es necesario*/
-        gnutls_global_deinit();
-        capatls->usándose = 0;
-    }
-}
-
 /* cntr_cierra_toma_tls */
 
 int
@@ -226,7 +229,7 @@ cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma)
                                              strerror(errno)));
             return CNTR_ERROR;
         }
-        cntr_liberta_capa_toma_tls(capatls);
+        cntr_parada_global_capa_tls(capatls);
     }
     return CNTR_HECHO;
 }
@@ -239,6 +242,16 @@ cntr_par_clave_privada_y_certificado_tls(t_capa_gnutls *capatls,
                                          const char *fclave)
 {
     int resul;
+    cntr_limpia_error(resul);
+
+    if (   capatls == NULL
+        || !capatls->sesión_iniciada) {
+        cntr_error(resul, cntr_msj_error("%s %s",
+                            "cntr_par_clave_privada_y_certificado_tls()",
+                            "no se ha iniciado capa TLS"));
+        return CNTR_ERROR;
+    }
+
     VERIFICA_ERROR(resul,
         gnutls_certificate_set_x509_key_file(capatls->credx509,
                                              fcertificado,
@@ -255,6 +268,16 @@ cntr_fichero_autoridades_certificadoras_tls(t_capa_gnutls *capatls,
                                             const char *fautoridades)
 {
     int resul;
+    cntr_limpia_error(resul);
+
+    if (   capatls == NULL
+        || !capatls->sesión_iniciada) {
+        cntr_error(resul, cntr_msj_error("%s %s",
+                            "cntr_fichero_autoridades_certificadoras_tls()",
+                            "no se ha iniciado capa TLS"));
+        return CNTR_ERROR;
+    }
+
     VERIFICA_ERROR(resul,
         gnutls_certificate_set_x509_trust_file(capatls->credx509,
                                                fautoridades,

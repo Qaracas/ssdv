@@ -99,7 +99,7 @@ cntr_borra_toma(t_cntr_toma_es *toma)
 {
     free(toma->pila);
     if (toma->gtls != NULL) {
-        cntr_liberta_capa_toma_tls(toma->gtls);
+        cntr_parada_global_capa_tls(toma->gtls);
         free(toma->gtls);
     }
 #if GNU_LINUX
@@ -276,7 +276,7 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
     }
 
     if (   (toma->gtls != NULL)
-        && (   cntr_inicia_globalmente_capa_tls_servidor(toma->gtls)
+        && (   cntr_arranque_global_capa_tls(toma->gtls)
             != CNTR_HECHO))
         return CNTR_ERROR;
 

@@ -393,9 +393,9 @@ haz_par_clave_y_certificado_tls(int nargs, awk_value_t *resultado,
                                 struct awk_ext_func *desusado)
 {
     (void) desusado;
-
     awk_value_t valorarg;
     extern t_cntr_ruta *rt;
+    extern t_cntr_error cntr_error;
 
     /* Sólo acepta 2 argumentos como máximo */
     if (nargs != 3)
@@ -423,8 +423,13 @@ haz_par_clave_y_certificado_tls(int nargs, awk_value_t *resultado,
 
     const char *f_clave_privada = (const char *) valorarg.str_value.str;
 
-    cntr_par_clave_privada_y_certificado_tls(rt->toma->gtls, f_certificado,
-                                             f_clave_privada);
+    if (   cntr_par_clave_privada_y_certificado_tls(rt->toma->gtls,
+                                                    f_certificado,
+                                                    f_clave_privada)
+        == CNTR_ERROR)
+            lintwarn(ext_id, cntr_msj_error("%s %s",
+                                    "pcertcla:",
+                                    cntr_error.descripción));
 
     return make_number(0, resultado);
 }
@@ -440,9 +445,9 @@ haz_lista_autoridades_tls(int nargs, awk_value_t *resultado,
                           struct awk_ext_func *desusado)
 {
     (void) desusado;
-
     awk_value_t valorarg;
     extern t_cntr_ruta *rt;
+    extern t_cntr_error cntr_error;
 
     /* Sólo acepta 2 argumentos como máximo */
     if (nargs != 2)
@@ -465,8 +470,12 @@ haz_lista_autoridades_tls(int nargs, awk_value_t *resultado,
 
     const char *f_auto_certificadoras = (const char *) valorarg.str_value.str;
 
-    cntr_fichero_autoridades_certificadoras_tls(rt->toma->gtls,
-                                                f_auto_certificadoras);
+    if (   cntr_fichero_autoridades_certificadoras_tls(rt->toma->gtls,
+                                                       f_auto_certificadoras)
+        == CNTR_ERROR)
+            lintwarn(ext_id, cntr_msj_error("%s %s",
+                                    "lisautor:",
+                                    cntr_error.descripción));
 
     return make_number(0, resultado);
 }

@@ -71,19 +71,27 @@ typedef struct capa_gnutls {
     gnutls_certificate_credentials_t credx509;  /* Est. certificado X.509 */
     gnutls_priority_t                prioridad; /* Para cifrado y claves  */
     gnutls_session_t                 sesión;    /* Sesión TLS             */
-    t_ctrn_verdad                    sesión_iniciada : 1;
     t_ctrn_verdad                    usándose : 1;
+    t_ctrn_verdad                    sesión_iniciada : 1;
 } t_capa_gnutls;
 
 
-/* cntr_inicia_globalmente_capa_tls_servidor --
+/* cntr_arranque_global_capa_tls --
  *
- * Inicializa parámetros globales de la capa TLS en toma local de escucha
+ * Inicializa parámetros globales de la capa TLS
  */
 
 int 
-cntr_inicia_globalmente_capa_tls_servidor(t_capa_gnutls *capatls);
+cntr_arranque_global_capa_tls(t_capa_gnutls *capatls);
 
+
+/* cntr_parada_global_capa_tls --
+ *
+ * Finaliza parámetros globales de la capa TLS
+ */
+
+void
+cntr_parada_global_capa_tls(t_capa_gnutls *capatls);
 
 /* cntr_inicia_sesion_capa_tls_servidor --
  *
@@ -118,14 +126,6 @@ cntr_envia_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente,
 ssize_t
 cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
                            size_t bulto);
-
-/* cntr_liberta_capa_toma_tls --
- *
- *
- */
-
-void
-cntr_liberta_capa_toma_tls(t_capa_gnutls *capatls);
 
 /* cntr_cierra_toma_tls --
  *

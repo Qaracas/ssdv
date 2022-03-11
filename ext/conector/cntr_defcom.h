@@ -55,8 +55,7 @@
     do { \
         extern t_cntr_error cntr_error; \
         cntr_error.número = 0; \
-        if (cntr_error.descripción != NULL) \
-            free(cntr_error.descripción); \
+        cntr_error.descripción = NULL; \
     } while(0)
 
 #define cntr_limpia_error(numerror) \
@@ -64,8 +63,7 @@
         extern t_cntr_error cntr_error; \
         numerror = 0; \
         cntr_error.número = 0; \
-        if (cntr_error.descripción != NULL) \
-            free(cntr_error.descripción); \
+        cntr_error.descripción = NULL; \
     } while(0)
 
 #define cntr_error(numerror, descripción_error) \
