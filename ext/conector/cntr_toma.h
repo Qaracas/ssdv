@@ -72,11 +72,17 @@ typedef struct cntr_sonda {
 struct capa_gnutls;
 typedef struct capa_gnutls t_capa_gnutls;
 
-typedef ssize_t (*rcb_datos)(t_capa_gnutls *capatls, int df_cliente,
+typedef ssize_t (*func_recibe)(t_capa_gnutls *capatls, int df_cliente,
                              void *tope, size_t bulto);
 
-typedef ssize_t (*env_datos)(t_capa_gnutls *capatls, int df_cliente,
+typedef ssize_t (*func_envía)(t_capa_gnutls *capatls, int df_cliente,
                              const void *tope, size_t bulto);
+
+typedef void (*func_para)(t_capa_gnutls *capatls);
+
+typedef int (*func_inicia)(t_capa_gnutls *capatls);
+
+typedef int (*func_cierra)(t_capa_gnutls *capatls, int cliente, int df_toma);
 
 /* Para cargar los datos que se envían o reciben de la toma */
 
@@ -98,8 +104,12 @@ typedef struct cntr_toma_es {
     t_cntr_dts_toma *pila;    /* Pila de datos entre el programa y la toma */
     struct addrinfo *infred;  /* Información de red TCP/IP (API Linux)     */
     t_ctrn_verdad   local;    /* ¿Toma local?                              */
-    env_datos       envia;    /* Puntero al envío de datos                 */
-    rcb_datos       recibe;   /* Puntero a la recepción de datos           */
+    func_envía      envia;    /* Puntero a función de envío de datos       */
+    func_recibe     recibe;   /* Puntero a función de recepción de datos   */
+    func_inicia     inicia_tls;      /* Ptr. a función inicio global TLS   */
+    func_para       para_tls;        /* Ptr. a función parada global TLS   */
+    func_inicia     ini_sesión_tls;  /* Ptr. a función inició sesión TLS   */
+    func_cierra     cierra_toma_tls; /* Ptr. a función cierre toma TLS     */
 } t_cntr_toma_es;
 
 /* cntr_nueva_toma --

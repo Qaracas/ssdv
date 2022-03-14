@@ -81,6 +81,14 @@ cntr_arranque_global_capa_tls(t_capa_gnutls *capatls)
     return CNTR_HECHO;
 }
 
+/* cntr_falso_arranque_global_capa_tls */
+int
+cntr_falso_arranque_global_capa_tls(t_capa_gnutls *capatls)
+{
+    (void) capatls;
+    return CNTR_HECHO;
+}
+
 /* cntr_parada_global_capa_tls */
 
 void
@@ -93,6 +101,14 @@ cntr_parada_global_capa_tls(t_capa_gnutls *capatls)
         gnutls_global_deinit();
         capatls->usándose = 0;
     }
+}
+
+/* cntr_falsa_parada_global_capa_tls */
+
+void
+cntr_falsa_parada_global_capa_tls(t_capa_gnutls *capatls)
+{
+    (void) capatls;
 }
 
 /* cntr_inicia_sesion_capa_tls_servidor */
@@ -126,6 +142,15 @@ cntr_inicia_sesion_capa_tls_servidor(t_capa_gnutls *capatls)
     gnutls_handshake_set_timeout(capatls->sesión,
                                  GNUTLS_DEFAULT_HANDSHAKE_TIMEOUT);
 
+    return CNTR_HECHO;
+}
+
+/* cntr_falso_inicio_sesion_capa_tls_servidor */
+
+int
+cntr_falso_inicio_sesion_capa_tls_servidor(t_capa_gnutls *capatls)
+{
+    (void) capatls;
     return CNTR_HECHO;
 }
 
@@ -230,6 +255,25 @@ cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma)
             return CNTR_ERROR;
         }
         cntr_parada_global_capa_tls(capatls);
+    }
+    return CNTR_HECHO;
+}
+
+/* cntr_falso_cierre_toma_tls */
+
+int
+cntr_falso_cierre_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma)
+{
+    (void) capatls;
+    (void) cliente;
+    extern int errno;
+    cntr_limpia_error(errno);
+
+    if (close(df_toma) < 0) {
+        cntr_error(errno, cntr_msj_error("%s %s",
+                                         "cntr_cierra_toma()",
+                                         strerror(errno)));
+        return CNTR_ERROR;
     }
     return CNTR_HECHO;
 }

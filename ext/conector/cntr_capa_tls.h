@@ -81,9 +81,15 @@ typedef struct capa_gnutls {
  * Inicializa parámetros globales de la capa TLS
  */
 
-int 
+int
 cntr_arranque_global_capa_tls(t_capa_gnutls *capatls);
 
+/* cntr_falso_arranque_global_capa_tls --
+ *
+ * Falsa función
+ */
+int
+cntr_falso_arranque_global_capa_tls(t_capa_gnutls *capatls);
 
 /* cntr_parada_global_capa_tls --
  *
@@ -93,6 +99,14 @@ cntr_arranque_global_capa_tls(t_capa_gnutls *capatls);
 void
 cntr_parada_global_capa_tls(t_capa_gnutls *capatls);
 
+/* cntr_falsa_parada_global_capa_tls --
+ *
+ * Falsa función
+ */
+
+void
+cntr_falsa_parada_global_capa_tls(t_capa_gnutls *capatls);
+
 /* cntr_inicia_sesion_capa_tls_servidor --
  *
  * Inicia sesión TLS en toma local de escucha
@@ -100,6 +114,14 @@ cntr_parada_global_capa_tls(t_capa_gnutls *capatls);
 
 int
 cntr_inicia_sesion_capa_tls_servidor(t_capa_gnutls *capatls);
+
+/* cntr_falso_inicio_sesion_capa_tls_servidor --
+ *
+ * Falsa función
+ */
+
+int
+cntr_falso_inicio_sesion_capa_tls_servidor(t_capa_gnutls *capatls);
 
 /* cntr_finaliza_sesion_capa_tls --
  *
@@ -133,7 +155,15 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
  */
 
 int
-cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df);
+cntr_cierra_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma);
+
+/* cntr_falso_cierre_toma_tls --
+ *
+ * Falsa función
+ */
+
+int
+cntr_falso_cierre_toma_tls(t_capa_gnutls *capatls, int cliente, int df_toma);
 
 /* cntr_par_clave_privada_y_certificado_tls --
  *
