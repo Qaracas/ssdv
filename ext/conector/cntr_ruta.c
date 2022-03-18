@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 
 #include "cntr_defcom.h"
 #include "cntr_cdntxt.h"
@@ -53,21 +54,51 @@
  *   - Servidor: /ired/tcp/192.168.1.32/7080/0/0
  *   - Cliente : /ired/tcp/0/0/www.ejemplo.es/8080
  */
+
+static const char *erp_srv =
+"^\\/ired\\/(tcp|tls)\\/\
+(\
+([a-z]+\\.)+[a-z]{1,3}\
+|\
+[a-z]+\
+|\
+([0-9]{1,3}\\.){3}[0-9]{1,3}\
+)\
+\\/[0-9]+\\/0\\/0$";
+
+/*
+static const char *erp_cli =
+"^\\/ired\\/(tcp|tls)\\/0\\/0\\/\
+(\
+([a-z]+\\.)+[a-z]{1,3}\
+|\
+|[a-z]+\
+|\
+([0-9]{1,3}\\.){3}[0-9]{1,3}\
+)\
+\\/[0-9]+$";
+*/
+
 static int
 procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
 {
-    if (   nombre == NULL
-        || strlen(nombre) < 12
-        || cuenta_crtrs(nombre, '/') == CNTR_ERROR
-        || cuenta_crtrs(nombre, '/') != 6
-        || caracter_ini(nombre) == CNTR_ERROR
-        || caracter_fin(nombre) == CNTR_ERROR
-        || caracter_ini(nombre) != '/'
-        || caracter_fin(nombre) == '/'
-       ) {
+    regex_t expreg_srv/*, expreg_cli*/;
+
+    /* Compilar expresiones regulares de la ruta */
+    if (   regcomp(&expreg_srv, erp_srv, REG_EXTENDED)) {
+        /*|| regcomp(&expreg_cli, erp_cli, REG_EXTENDED)) {*/
         cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
                              "cntr_nueva_ruta()",
-                             "nombre de ruta malformado"));
+                             "Error interno al compilar e.r."));
+        return CNTR_ERROR;
+    }
+
+    /* Ejecutar expresiones regulares */
+    if (   regexec(&expreg_srv, nombre, 0, NULL, 0)) {
+        /*|| regexec(&expreg_cli, nombre, 0, NULL, 0)) {*/
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
+                             "cntr_nueva_ruta()",
+                             "nombre de ruta incorrecto"));
         return CNTR_ERROR;
     }
 
@@ -83,21 +114,6 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
     for (c = 0; (c < cntr_ltd(campo) - 1) && campo[c] != NULL;)
         campo[++c] = strtok(NULL, "/");
 
-    if (   c != (cntr_ltd(campo) - 1)
-        || strcmp(campo[0], "ired") != 0
-        || (   strcmp(campo[1], "tcp") != 0
-            && strcmp(campo[1], "tls") != 0)
-        || !es_numero(campo[3])
-        || atoi(campo[3]) < 0
-        || strcmp(campo[4], "0") != 0
-        || strcmp(campo[5], "0") != 0
-       ) {
-        cntr_error(CNTR_ERROR, cntr_msj_error("%s %s",
-                             "cntr_nueva_ruta()",
-                             "nombre de ruta incorrecto"));
-        return CNTR_ERROR;
-    }
-
     (*ruta)->tipo = strdup(campo[0]);
     (*ruta)->protocolo = strdup(campo[1]);
     (*ruta)->nodo_local = strdup(campo[2]);
@@ -110,6 +126,8 @@ procesa_nombre_ruta(const char *nombre, t_cntr_ruta **ruta)
     else
         (*ruta)->segura = cntr_falso;
 
+    regfree(&expreg_srv);
+    /*regfree(&expreg_cli);*/
     free(v_nombre);
 
     return CNTR_HECHO;
@@ -126,19 +144,23 @@ cntr_nueva_ruta(const char *nombre, t_cntr_ruta **ruta)
                  sizeof(t_cntr_ruta),
                  "cntr_nueva_ruta");
 
-    if (procesa_nombre_ruta(nombre, ruta) == CNTR_ERROR) {
-        free(ruta);
-        ruta = NULL;
+    (*ruta)->nombre = NULL;
+    (*ruta)->tipo = NULL;
+    (*ruta)->protocolo = NULL;
+    (*ruta)->nodo_local = NULL;
+    (*ruta)->puerto_local = NULL;
+    (*ruta)->nodo_remoto = NULL;
+    (*ruta)->puerto_remoto = NULL;
+    (*ruta)->toma = NULL;
+    (*ruta)->local = cntr_cierto;
+
+    if (procesa_nombre_ruta(nombre, ruta) == CNTR_ERROR)
         return CNTR_ERROR;
-    }
 
     cntr_asigmem((*ruta)->nombre, char *,
                  strlen((const char *) nombre) + 1,
                  "cntr_nueva_ruta");
     strcpy((*ruta)->nombre, (const char *) nombre);
-
-    (*ruta)->toma = NULL;
-    (*ruta)->local = cntr_cierto;
 
     return CNTR_HECHO;
 }
