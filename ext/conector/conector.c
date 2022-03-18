@@ -664,6 +664,7 @@ static awk_two_way_processor_t conector_es = {
 static awk_bool_t
 inicia_conector()
 {
+    register_ext_version(ext_version);
     register_two_way_processor(&conector_es);
     return awk_true;
 }
