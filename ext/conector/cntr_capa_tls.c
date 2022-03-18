@@ -289,7 +289,7 @@ cntr_par_clave_privada_y_certificado_tls(t_capa_gnutls *capatls,
     cntr_limpia_error(resul);
 
     if (   capatls == NULL
-        || !capatls->sesión_iniciada) {
+        || !capatls->usándose) {
         cntr_error(resul, cntr_msj_error("%s %s",
                             "cntr_par_clave_privada_y_certificado_tls()",
                             "no se ha iniciado capa TLS"));
@@ -315,7 +315,7 @@ cntr_fichero_autoridades_certificadoras_tls(t_capa_gnutls *capatls,
     cntr_limpia_error(resul);
 
     if (   capatls == NULL
-        || !capatls->sesión_iniciada) {
+        || !capatls->usándose) {
         cntr_error(resul, cntr_msj_error("%s %s",
                             "cntr_fichero_autoridades_certificadoras_tls()",
                             "no se ha iniciado capa TLS"));
