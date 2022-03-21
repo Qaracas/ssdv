@@ -151,7 +151,7 @@ Normalmente este certificado pertenece a una autoridad certificadota que firma o
 (conector)$ certtool --generate-request --load-privkey clave_privada_servidor.pem --outfile solicitud_certificado_servidor.pem
 ```
 
-## Servidor: generar certificado a partir la solicitud
+## Servidor: generar certificado a partir de la solicitud
 
 ```bash
 (conector)$ certtool --generate-certificate --load-request solicitud_certificado_servidor.pem \
