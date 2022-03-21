@@ -125,16 +125,38 @@ Pinchar en los siguientes vínculos para obtener más información:
 * [Cómo se usa ocsptool](https://www.gnutls.org/manual/html_node/ocsptool-Invocation.html)
 * [Solicitud de estado OCSP](https://www.gnutls.org/manual/html_node/OCSP-status-request.html#OCSP-status-request)
 
-## Generar una clave privada
+## Generar una clave privada (autoridad certificadora)
 
 ```bash
-(conector)$ certtool --generate-privkey --outfile clave_privada.pem
+(conector)$ certtool --generate-privkey --outfile clave_privada_ac.pem
 ```
 
-## Generar un certificado autofirmado de servidor
+## Generar un certificado autofirmado (autoridad certificadora)
 
 ```bash
-(conector)$ certtool --generate-self-signed --load-privkey clave_privada.pem --outfile certificado_servidor.pem
+(conector)$ certtool --generate-self-signed --load-privkey clave_privada_ac.pem --outfile certificado_ac.pem
+```
+
+Normalmente este certificado pertenece a una autoridad certificadota que firma otros certificados
+
+## Generar una clave privada (servidor)
+
+```bash
+(conector)$ certtool --generate-privkey --outfile clave_privada_servidor.pem
+```
+
+## Generar una solicitud de certificado (servidor)
+
+```bash
+(conector)$ certtool --generate-request --load-privkey clave_privada_servidor.pem --outfile solicitud_certificado_servidor.pem
+```
+
+## Generar certificado a partir la solicitud anterior (servidor)
+
+```bash
+(conector)$ certtool --generate-certificate --load-request solicitud_certificado_servidor.pem \
+   --outfile certificado_servidor.pem --load-ca-certificate certificado_ac.pem \
+   --load-ca-privkey clave_privada_ac.pem
 ```
 
 ## Solicitud de estado OCSP (siglas en inglés de Protocolo de Estado de Certificado En línea)
