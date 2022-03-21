@@ -73,13 +73,13 @@ Para conectar con servidor es necesario verificar su identidad usando su certifi
 hacer desde otro terminal usando curl ([2]), de la siguiente manera:
 
 ```bash
-(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/prueba.html
+(conector)$ curl -v --cacert certificado_ac.pem https://localhost:7070/prueba.html
 ```
 
 Conectar y apagar el servidor desde otro terminal:
 
 ```bash
-(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir
+(conector)$ curl -v --cacert certificado_ac.pem https://localhost:7070/salir
 ```
 
 ### Ejemplo 4: servidor HTTP de doble toma (una TCP y otra TLS)
@@ -103,14 +103,14 @@ Conectar al puerto TCP del servidor usando curl desde otro terminal:
 Conectar al puerto TLS del servidor usando curl desde otro terminal:
 
 ```bash
-(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir.html
+(conector)$ curl -v --cacert certificado_ac.pem https://localhost:7070/salir.html
 ```
 
 Conectar y apagar el servidor desde otro terminal:
 
 ```bash
 (conector)$ curl -v http://localhost:6060/salir
-(conector)$ curl -v --cacert certificado_servidor.pem https://localhost:7070/salir
+(conector)$ curl -v --cacert certificado_ac.pem https://localhost:7070/salir
 ```
 
 # Cómo usar la herramienta certtool
@@ -125,13 +125,13 @@ Pinchar en los siguientes vínculos para obtener más información:
 * [Cómo se usa ocsptool](https://www.gnutls.org/manual/html_node/ocsptool-Invocation.html)
 * [Solicitud de estado OCSP](https://www.gnutls.org/manual/html_node/OCSP-status-request.html#OCSP-status-request)
 
-## Generar una clave privada (autoridad certificadora)
+## Autoridad certificadora: generar clave privada
 
 ```bash
 (conector)$ certtool --generate-privkey --outfile clave_privada_ac.pem
 ```
 
-## Generar un certificado autofirmado (autoridad certificadora)
+## Autoridad certificadora: generar certificado autofirmado
 
 ```bash
 (conector)$ certtool --generate-self-signed --load-privkey clave_privada_ac.pem --outfile certificado_ac.pem
@@ -139,19 +139,19 @@ Pinchar en los siguientes vínculos para obtener más información:
 
 Normalmente este certificado pertenece a una autoridad certificadota que firma otros certificados
 
-## Generar una clave privada (servidor)
+## Servidor: generar clave privada
 
 ```bash
 (conector)$ certtool --generate-privkey --outfile clave_privada_servidor.pem
 ```
 
-## Generar una solicitud de certificado (servidor)
+## Servidor: generar solicitud de certificado
 
 ```bash
 (conector)$ certtool --generate-request --load-privkey clave_privada_servidor.pem --outfile solicitud_certificado_servidor.pem
 ```
 
-## Generar certificado a partir la solicitud anterior (servidor)
+## Servidor: generar certificado a partir la solicitud
 
 ```bash
 (conector)$ certtool --generate-certificate --load-request solicitud_certificado_servidor.pem \
