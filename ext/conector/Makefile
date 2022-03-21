@@ -5,7 +5,7 @@ CC  = gcc -Wall -Wextra -Werror -pedantic
 DLB = ../lib
 EXT = conector
 
-LOJ = $(EXT) cntr_cdntxt cntr_ruta cntr_toma cntr_stoma cntr_tope cntr_serie cntr_defcom cntr_capa_tls
+LOJ = $(EXT) cntr_ruta cntr_toma cntr_stoma cntr_tope cntr_serie cntr_defcom cntr_capa_tls
 OJS := $(foreach i,$(LOJ),$(i).o)
 
 UNAME := $(shell uname)

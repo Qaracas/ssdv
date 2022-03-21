@@ -37,7 +37,6 @@
 #include <regex.h>
 
 #include "cntr_defcom.h"
-#include "cntr_cdntxt.h"
 #include "cntr_ruta.h"
 #include "cntr_toma.h"
 #include "cntr_stoma.h"
