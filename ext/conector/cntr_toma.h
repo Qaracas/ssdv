@@ -91,7 +91,7 @@ typedef struct datos_toma {
     char        *sdrt;        /* Separador de registro. Variable RS gawk   */
     size_t      tsr;          /* Tamaño cadena separador de registro       */
     size_t      lgtreg;       /* Tamaño actual del registro                */
-    int         en_uso;
+    //int         en_uso;
 } t_cntr_dts_toma;
 
 typedef struct cntr_toma_es {
@@ -128,13 +128,21 @@ cntr_nueva_toma(t_cntr_ruta *ruta);
 void
 cntr_borra_toma(t_cntr_toma_es *toma);
 
-/* cntr_nueva_estructura_datos_toma --
+/* cntr_nueva_pila_toma --
  *
- * Crea estructura de la pila de datos
+ * Crea estructura de la pila de datos en la toma
  */
 
 t_cntr_dts_toma *
-cntr_nueva_estructura_datos_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
+cntr_nueva_pila_toma(t_cntr_toma_es *toma, char *sr, size_t tpm);
+
+/* cntr_borra_pila_toma --
+ *
+ * Libera memoria de la pila asociada a la toma
+ */
+
+void
+cntr_borra_pila_toma(t_cntr_toma_es *toma);
 
 /* cntr_envia_datos --
  *
