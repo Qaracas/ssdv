@@ -48,7 +48,7 @@
 /* cntr_nuevo_tope */
 
 int
-cntr_nuevo_tope(size_t bulto, t_cntr_tope **tope)
+cntr_nuevo_tope(t_cntr_tope **tope, size_t bulto)
 {
     cntr_limpia_error_simple();
 
