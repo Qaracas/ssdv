@@ -51,8 +51,9 @@ BEGIN {
     creatoma(rutaTCP);
     creatoma(rutaTLS);
 
-    pcertcla(rutaTLS, "certificado_servidor.pem", "clave_privada.pem");
-    lisautor(rutaTLS, "/etc/pki/tls/certs/ca-bundle.crt");
+    pcertcla(rutaTLS, "certificados/certificado_servidor.pem",
+                      "certificados/clave_privada_servidor.pem");
+    lisautor(rutaTLS, "certificados/certificado_ac.pem");
 
     if ((pid = fork()) == 0) {
         # Rama hija escucha por un puerto

@@ -47,8 +47,9 @@ BEGIN {
     canalTLS = "/ired/tls/" ARGV[1] "/" ARGV[2] "/0/0";
     creatoma(canalTLS);
 
-    pcertcla(canalTLS, "certificado_servidor.pem", "clave_privada.pem");
-    lisautor(canalTLS, "/etc/pki/tls/certs/ca-bundle.crt");
+    pcertcla(canalTLS, "certificados/certificado_servidor.pem",
+                       "certificados/clave_privada_servidor.pem");
+    lisautor(canalTLS, "certificados/certificado_ac.pem");
 
     while (1) {
         print "[" PROCINFO["pid"] "]", "Esperando petición...";
