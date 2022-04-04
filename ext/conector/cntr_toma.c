@@ -194,15 +194,14 @@ reintenta_recibir_linea:
         recbt = cntr_rcbl_llena_tope(toma);
 
         switch (recbt) {
-            case CNTR_TOPE_RESTO:
-                return tope->datos;
-            case CNTR_TOPE_VACIO:
-                return NULL;
             case CNTR_REINTENTAR:
                 if (   cntr_trae_primer_cliente_toma(toma, &cliente)
                     == CNTR_ERROR)
                     return NULL;
                 goto reintenta_recibir_linea;
+            case CNTR_TOPE_RESTO:
+                return tope->datos;
+            case CNTR_TOPE_VACIO:
             case CNTR_ERROR:
                 return NULL;
         }
@@ -255,14 +254,13 @@ reintenta_recibir_flujo:
     recbt = cntr_rcbf_llena_tope(toma);
 
     switch (recbt) {
-        case CNTR_TOPE_VACIO:
-            return NULL;
         case CNTR_REINTENTAR:
             if (   cntr_trae_primer_cliente_toma(toma, &cliente)
                 == CNTR_ERROR) {
                 return NULL;
             }
             goto reintenta_recibir_flujo;
+        case CNTR_TOPE_VACIO:
         case CNTR_ERROR:
             return NULL;
     }
