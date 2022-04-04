@@ -123,8 +123,6 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
                                    tope->bulto - tope->ptrreg);
 
     switch (tope->ldatos) {
-        case CNTR_ERROR:
-            return CNTR_ERROR;
         case CNTR_REINTENTAR:
             return CNTR_REINTENTAR;
         case 0:
@@ -135,6 +133,8 @@ cntr_rcbl_llena_tope(t_cntr_toma_es *toma)
                 return CNTR_TOPE_RESTO;
             } else
                 return CNTR_TOPE_VACIO;
+        case CNTR_ERROR:
+            return CNTR_ERROR;
     }
 
     /* Limpiar el sobrante */
@@ -159,16 +159,17 @@ cntr_rcbf_llena_tope(t_cntr_toma_es *toma)
         || toma->cliente == CNTR_DF_NULO)
     return CNTR_ERROR;
 
+    bzero(tope->datos, tope->bulto);
     tope->ldatos = (*toma->recibe)(toma->gtls, toma->cliente, tope->datos,
                                    tope->bulto);
 
     switch (tope->ldatos) {
-        case CNTR_ERROR:
-            return CNTR_ERROR;
         case CNTR_REINTENTAR:
             return CNTR_REINTENTAR;
         case 0:
             return CNTR_TOPE_VACIO;
+        case CNTR_ERROR:
+            return CNTR_ERROR;
     }
 
     return CNTR_HECHO;
