@@ -68,6 +68,7 @@ typedef char * (*recibe_toma)(t_cntr_toma_es *toma, char **sdrt, size_t *tsr);
 
 static t_cntr_ruta *rt;    /* Ruta de conexión en uso                       */
 static recibe_toma recibe; /* Puntero a función que recibe datos de la toma */
+static size_t      v_tpm;  /* Toma el valor de la variable global TPM       */
 
 /* pon_num_en_coleccion --
  *
@@ -99,43 +100,77 @@ pon_txt_en_coleccion(awk_array_t coleccion, const char *sub, const char *txt)
         make_const_string(txt, strlen(txt), &value));
 }
 
-/* f_interna_acaba_toma --
+/* comprueba_actualiza_ruta --
  *
- * Añadir elemento textual a la colección
+ * Comprueba si el nombre del fichero especial está registrado como ruta de
+ * red y actualiza valor de <<rt>> si es necesario
  */
 
 static int
-f_interna_acaba_toma(int nargs)
+comprueba_actualiza_ruta(const char *nombre_func, const char *nombre_ruta)
 {
-    awk_value_t nombre;
     extern t_cntr_ruta *rt;
 
-    /* Sólo acepta 1 argumento */
-    if (nargs != 1) {
-        lintwarn(ext_id, "acabasrv: nº de argumentos incorrecto");
-        return CNTR_ERROR;
+    if (strcmp(nombre_ruta, "") == 0 || nombre_ruta == NULL) {
+        fatal(ext_id, cntr_msj_error("%s %s",
+                             nombre_func,
+                             "error leyendo nombre de fichero especial"));
     }
 
-    if (! get_argument(0, AWK_STRING, &nombre)) {
-        lintwarn(ext_id, "acabasrv: tipo de argumento incorrecto");
+    if (   (   rt != NULL
+            && strcmp(nombre_ruta, (const char *)rt->nombre) == 0)
+        || (rt = cntr_busca_ruta_en_serie(nombre_ruta)) != NULL) {
+        return CNTR_HECHO;
+    } else {
+        cntr_error(CNTR_ERROR, cntr_msj_error("%s",
+                             "toma de datos inexistente"));
         return CNTR_ERROR;
     }
+}
 
-    const char *nombre_ruta = (const char *) nombre.str_value.str;
+/* trae_tope_maximo --
+ *
+ * Trae el valor de la variable global TMP
+ */
 
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "acabasrv: error leyendo nombre de fichero especial");
+static size_t
+trae_tope_maximo()
+{
+    awk_value_t valor_tpm;
+    size_t tpm;
+    extern recibe_toma recibe;
 
-    if (   rt != NULL
-        && strcmp(nombre_ruta, (const char *)rt->nombre) != 0)
-        rt = cntr_busca_ruta_en_serie(nombre_ruta);
+    if (!(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)))
+        fatal(ext_id, "creatoma: error leyendo variable TPM");
 
-    if (rt == NULL) {
-        lintwarn(ext_id, "acabasrv: toma de datos inexistente");
-        return CNTR_ERROR;
-    }
+    if (valor_tpm.num_value < 0)
+        fatal(ext_id, "creatoma: valor de TPM incorrecto");
 
-    return CNTR_HECHO;
+    tpm = (size_t) valor_tpm.num_value;
+
+    /* Si TMP = 0 leemos datos hasta CNTR_TOPE_MAX_X_DEF */
+    if (tpm == 0)
+        recibe = &cntr_recibe_linea_toma;
+    else
+        recibe = &cntr_recibe_flujo_toma;
+
+    return tpm;
+}
+
+/* trae_separador_de_registro --
+ *
+ * Trae el valor de la variable global RS
+ */
+
+static char *
+trae_separador_de_registro()
+{
+    awk_value_t valor_rs;
+
+    if (!(sym_lookup("RS",  AWK_STRING, &valor_rs)))
+        fatal(ext_id, "creatoma: error leyendo variable RS");
+
+    return (char *)valor_rs.str_value.str;
 }
 
 /**
@@ -152,9 +187,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
               struct awk_ext_func *desusado)
 {
     (void) desusado;
-    awk_value_t nombre, valor_tpm, valor_rs;
+    awk_value_t nombre;
+    extern size_t v_tpm;
     extern t_cntr_ruta *rt;
-    extern recibe_toma recibe;
     extern t_cntr_error cntr_error;
 
     /* Sólo acepta 1 argumento */
@@ -164,14 +199,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
     if (! get_argument(0, AWK_STRING, &nombre))
         fatal(ext_id, "creatoma: tipo de argumento incorrecto");
 
-    const char *nombre_ruta = (const char *) nombre.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "creatoma: error leyendo nombre de fichero especial");
-
-    if (   (   rt != NULL
-            && strcmp(nombre_ruta, (const char *)rt->nombre) == 0)
-        || (rt = cntr_busca_ruta_en_serie(nombre_ruta)) != NULL) {
+    const char *nombre_ruta = (const char *)nombre.str_value.str;
+    if (comprueba_actualiza_ruta("creatoma:",
+                                 nombre_ruta) == CNTR_HECHO) {
         lintwarn(ext_id, "creatoma: la ruta ya existe");
         return make_number(rt->toma->servidor, resultado);
     }
@@ -194,24 +224,9 @@ haz_crea_toma(int nargs, awk_value_t *resultado,
                                      "creatoma:",
                                      cntr_error.descripción));
 
-    if (!(sym_lookup("TPM", AWK_NUMBER, &valor_tpm)))
-        fatal(ext_id, "creatoma: error leyendo variable TPM");
-
-    if (valor_tpm.num_value < 0)
-        fatal(ext_id, "creatoma: valor de TPM incorrecto");
-
-    if (!(sym_lookup("RS",  AWK_STRING, &valor_rs)))
-        fatal(ext_id, "creatoma: error leyendo variable RS");
-
-    size_t tpm = (size_t) valor_tpm.num_value;
-    char * rs = (char *)valor_rs.str_value.str;
-
-    if (tpm == 0)
-        recibe = &cntr_recibe_linea_toma;
-    else
-        recibe = &cntr_recibe_flujo_toma;
-
-    cntr_nueva_estructura_datos_toma(rt->toma, rs, tpm);
+    v_tpm = trae_tope_maximo();
+    cntr_nueva_pila_toma(rt->toma, trae_separador_de_registro(),
+                         v_tpm);
     if (cntr_error.número < 0)
         fatal(ext_id, cntr_msj_error("%s %s",
                                      "creatoma:",
@@ -256,14 +271,9 @@ haz_destruye_toma(int nargs, awk_value_t *resultado,
     if (! get_argument(0, AWK_STRING, &nombre))
         fatal(ext_id, "matatoma: tipo de argumento incorrecto");
 
-    const char *nombre_ruta = (const char *) nombre.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "matatoma: error leyendo nombre de fichero especial");
-
-    if (   (   rt != NULL
-            && strcmp(nombre_ruta, (const char *)rt->nombre) == 0)
-        || (rt = cntr_busca_ruta_en_serie(nombre_ruta)) != NULL) {
+    const char *nombre_ruta = (const char *)nombre.str_value.str;
+    if (comprueba_actualiza_ruta("matatoma:",
+                                 nombre_ruta) == CNTR_HECHO) {
         cntr_borra_ruta_de_serie(nombre_ruta);
         cntr_borra_ruta(rt);
     } else {
@@ -284,10 +294,32 @@ haz_acaba_toma_srv(int nargs, awk_value_t *resultado,
                    struct awk_ext_func *desusado)
 {
     (void) desusado;
+    awk_value_t nombre;
     extern t_cntr_error cntr_error;
+    extern t_cntr_ruta *rt;
 
-    if (f_interna_acaba_toma(nargs) < 0)
+    /* Sólo acepta 1 argumento */
+    if (nargs != 1) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                             "acabasrv:",
+                             "nº de argumentos incorrecto"));
         return make_number(-1, resultado);
+    }
+
+    if (! get_argument(0, AWK_STRING, &nombre)) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                             "acabasrv:",
+                             "tipo de argumento incorrecto"));
+        return make_number(-1, resultado);
+    }
+
+    if (comprueba_actualiza_ruta("acabasrv:",
+                                 (const char *)nombre.str_value.str) < 0) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                                     "acabasrv:",
+                                     cntr_error.descripción));
+        return make_number(-1, resultado);
+    }
 
     if (cntr_cierra_toma_servidor(rt->toma, 0) == CNTR_ERROR)
         lintwarn(ext_id, cntr_msj_error("%s %s",
@@ -307,10 +339,32 @@ haz_acaba_toma_cli(int nargs, awk_value_t *resultado,
                     struct awk_ext_func *desusado)
 {
     (void) desusado;
+    awk_value_t nombre;
     extern t_cntr_error cntr_error;
+    extern t_cntr_ruta *rt;
 
-    if (f_interna_acaba_toma(nargs) < 0)
+    /* Sólo acepta 1 argumento */
+    if (nargs != 1) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                             "acabacli:",
+                             "nº de argumentos incorrecto"));
         return make_number(-1, resultado);
+    }
+
+    if (! get_argument(0, AWK_STRING, &nombre)) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                             "acabacli:",
+                             "tipo de argumento incorrecto"));
+        return make_number(-1, resultado);
+    }
+
+    if (comprueba_actualiza_ruta("acabacli:",
+                                 (const char *)nombre.str_value.str) < 0) {
+        lintwarn(ext_id, cntr_msj_error("%s %s",
+                                     "acabacli:",
+                                     cntr_error.descripción));
+        return make_number(-1, resultado);
+    }
 
     if (cntr_cierra_toma_cliente(rt->toma, 0) == CNTR_ERROR)
         lintwarn(ext_id, cntr_msj_error("%s %s",
@@ -341,13 +395,9 @@ haz_trae_primer_cli(int nargs, awk_value_t *resultado,
     if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "traepcli: tipo de argumento incorrecto");
 
-    const char *nombre_ruta = (const char *) valorarg.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "traepcli: error leyendo nombre de fichero especial");
-
-    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
-        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+    if (comprueba_actualiza_ruta("traepcli:",
+                                 (const char *)
+                                 valorarg.str_value.str) < 0)
             fatal(ext_id, "traepcli: toma de datos inexistente");
 
     struct sockaddr_in cliente;
@@ -404,13 +454,9 @@ haz_par_clave_y_certificado_tls(int nargs, awk_value_t *resultado,
     if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "pcertcla: tipo de argumento incorrecto");
 
-    const char *nombre_ruta = (const char *) valorarg.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "pcertcla: error leyendo nombre de fichero especial");
-
-    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
-        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+    if (comprueba_actualiza_ruta("pcertcla:",
+                                 (const char *)
+                                 valorarg.str_value.str) < 0)
             fatal(ext_id, "pcertcla: toma de datos inexistente");
 
     if (! get_argument(1, AWK_STRING, &valorarg))
@@ -456,13 +502,9 @@ haz_lista_autoridades_tls(int nargs, awk_value_t *resultado,
     if (! get_argument(0, AWK_STRING, &valorarg))
         fatal(ext_id, "lisautor: tipo de argumento incorrecto");
 
-    const char *nombre_ruta = (const char *) valorarg.str_value.str;
-
-    if (nombre_ruta == NULL)
-        fatal(ext_id, "lisautor: error leyendo nombre de fichero especial");
-
-    if ((rt != NULL && strcmp(nombre_ruta, rt->nombre) != 0) || rt == NULL)
-        if ((rt = cntr_busca_ruta_en_serie(nombre_ruta)) == NULL)
+    if (comprueba_actualiza_ruta("lisautor:",
+                                 (const char *)
+                                 valorarg.str_value.str) < 0)
             fatal(ext_id, "lisautor: toma de datos inexistente");
 
     if (! get_argument(1, AWK_STRING, &valorarg))
@@ -553,10 +595,18 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
         return EOF;
 
     (void) desusado;
-
+    size_t tpm;
+    extern size_t v_tpm;
     extern t_cntr_ruta *rt;
     extern recibe_toma recibe;
     extern t_cntr_error cntr_error;
+
+    /* Relee variable global TPM cada vez */
+    if((tpm = trae_tope_maximo()) != v_tpm) {
+        v_tpm = tpm;
+        cntr_borra_tope(rt->toma->pila->tope);
+        cntr_nuevo_tope(&rt->toma->pila->tope, tpm);
+    }
 
     cntr_error.número = 0;
     *out = (*recibe)(rt->toma, rt_start, rt_len);
@@ -565,9 +615,10 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
     {
         *errcode = cntr_error.número;
         update_ERRNO_int(*errcode);
-        fatal(ext_id, cntr_msj_error("%s %s",
+        update_ERRNO_string(cntr_msj_error("%s %s",
                                      "conector_recibe_datos:",
                                      cntr_error.descripción));
+        return EOF;
     }
 
     return rt->toma->pila->lgtreg;
@@ -579,7 +630,7 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
  */
 
 static size_t
-conector_envia_datos(const void *tope, size_t bulto, size_t cuenta, FILE *pf,
+conector_envia_datos(const void *tope, size_t bulto, size_t ndatos, FILE *pf,
                      void *opaco)
 {
     (void) pf;
@@ -587,14 +638,14 @@ conector_envia_datos(const void *tope, size_t bulto, size_t cuenta, FILE *pf,
     extern t_cntr_ruta *rt;
     extern t_cntr_error cntr_error;
 
-    if (cntr_envia_toma(rt->toma, tope, (bulto * cuenta)) == CNTR_ERROR) {
+    if (cntr_envia_toma(rt->toma, tope, (bulto * ndatos)) == CNTR_ERROR) {
         lintwarn(ext_id, cntr_msj_error("%s %s",
                                         "conector_envia_datos:",
                                         cntr_error.descripción));
         return EOF;
     }
 
-    return (bulto * cuenta);
+    return (bulto * ndatos);
 }
 
 /* conector_puede_aceptar_fichero --
