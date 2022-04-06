@@ -366,7 +366,7 @@ int cambia_no_bloqueante(int df)
 {
     int indicadores;
     /* Si existe O_NONBLOCK se hace a la manera Posix */
-#if defined(O_NONBLOCK)
+#ifdef O_NONBLOCK
     /* Arréglame: O_NONBLOCK está definido pero roto en
        SunOS 4.1.x y AIX 3.2.5. */
     if (-1 == (indicadores = fcntl(df, F_GETFL, 0)))
