@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "cntr_defcom.h"
 #include "cntr_ruta.h"
@@ -260,7 +261,7 @@ reintenta_recibir_flujo:
                 return NULL;
             }
             goto reintenta_recibir_flujo;
-        case CNTR_TOPE_VACIO:
+        //case CNTR_TOPE_VACIO:
         case CNTR_ERROR:
             return NULL;
     }
@@ -354,6 +355,30 @@ cntr_pon_a_escuchar_toma(t_cntr_toma_es *toma)
     return CNTR_HECHO;
 }
 
+/* cambia_no_bloqueante --
+ *
+ * Poner toma en estado no bloqueante. Véase:
+ * http://dwise1.net/pgm/sockets/blocking.html
+ */
+
+static
+int cambia_no_bloqueante(int df)
+{
+    int indicadores;
+    /* Si existe O_NONBLOCK se hace a la manera Posix */
+#if defined(O_NONBLOCK)
+    /* Arréglame: O_NONBLOCK está definido pero roto en
+       SunOS 4.1.x y AIX 3.2.5. */
+    if (-1 == (indicadores = fcntl(df, F_GETFL, 0)))
+        indicadores = 0;
+    return fcntl(df, F_SETFL, indicadores | O_NONBLOCK);
+#else
+    /* Si no, se hace a la manera tradicional */
+    indicadores = 1;
+    return ioctl(df, FIOBIO, &indicadores);
+#endif
+}
+
 #if GNU_LINUX
 /* cntr_trae_primer_cliente_toma */
 
@@ -415,6 +440,8 @@ atiende_resto_eventos:
         }
     }
 sal_y_usa_el_df:
+    /* Pon la toma en estado no bloqueante */
+    cambia_no_bloqueante(toma->cliente);
     return CNTR_HECHO;
 }
 #else
@@ -481,6 +508,8 @@ sondea_salida:
                 goto sondea_salida;
         }
     }
+    /* Pon la toma en estado no bloqueante */
+    cambia_no_bloqueante(toma->cliente);
     return CNTR_HECHO;
 }
 #endif

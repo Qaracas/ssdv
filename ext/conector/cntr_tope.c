@@ -100,10 +100,16 @@ cntr_recibe_datos(t_capa_gnutls *capatls, int df_cliente, void *tope,
     ssize_t resul;
 
     cntr_limpia_error(errno);
-    if ((resul = recv(df_cliente, tope, bulto, 0)) < 0)
-        cntr_error(errno, cntr_msj_error("%s %s",
-                             "cntr_recibe_datos()",
-                             strerror(errno)));
+    if (   (resul = recv(df_cliente, tope, bulto, 0)) < 0) {
+        if (errno != EAGAIN && errno!=  EWOULDBLOCK) {
+            cntr_error(errno, cntr_msj_error("%s %s",
+                                 "cntr_recibe_datos()",
+                                 strerror(errno)));
+            return CNTR_ERROR;
+        } else {
+            return 0;
+        }
+    }
     return resul;
 }
 

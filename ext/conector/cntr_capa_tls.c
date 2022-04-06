@@ -211,12 +211,15 @@ cntr_recibe_datos_capa_tls(t_capa_gnutls *capatls, int df_cliente, void *tope,
         return CNTR_REINTENTAR;
     }
 
-    BUCLE_VERIFICA(resul, gnutls_record_recv(capatls->sesión, tope, bulto));
-    if (resul < 0) {
-        cntr_error(resul, cntr_msj_error("%s %s",
-                             "cntr_recibe_datos_capa_tls()",
-                             gnutls_strerror(resul)));
-        return CNTR_ERROR;
+    if ((resul = gnutls_record_recv(capatls->sesión, tope, bulto)) < 0) {
+        if (resul != GNUTLS_E_AGAIN) {
+            cntr_error(resul, cntr_msj_error("%s %s",
+                                 "cntr_recibe_datos_capa_tls()",
+                                 gnutls_strerror(resul)));
+            return CNTR_ERROR;
+        } else {
+            return 0;
+        }
     }
 
     return resul;
