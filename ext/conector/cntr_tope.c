@@ -73,6 +73,7 @@ cntr_nuevo_tope(t_cntr_tope **tope, size_t bulto)
     (*tope)->bulto = v_bulto;
     (*tope)->ldatos = 0;
     (*tope)->ptrreg = 0;
+    (*tope)->ptareg = 0;
     bzero((*tope)->datos, v_bulto);
 
     return CNTR_HECHO;
