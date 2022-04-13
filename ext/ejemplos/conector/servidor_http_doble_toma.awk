@@ -72,15 +72,13 @@ BEGIN {
 function bucle(canal, puerto,    cli, salir)
 {
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Escuchando en puerto " \
-            puerto ". Espero petición...";
         traepcli(canal, cli);
         print "[" PROCINFO["pid"] "]",
-            "Recibida petición desde " cli["dir"] ", puerto " cli["pto"] ".";
+            "Petición recibida desde " cli["dir"] ":" cli["pto"];
 
         # Procesar petición
         salir = 0;
-        while ((canal |& getline) > 0) {
+        while (resul = (canal |& getline)) {
             print "[" PROCINFO["pid"] "] <", $0;
             if ($1 == "GET" && $2 == "/salir")
                 salir = 1;
@@ -88,8 +86,17 @@ function bucle(canal, puerto,    cli, salir)
                 break;
         }
 
+        if (resul < 0) {
+            print ERRNO;
+            break;
+        }
+
         # Mandar respuesta
+        print "[" PROCINFO["pid"] "]",
+            "Respuesta enviada hacia " cli["dir"] ":" cli["pto"];
+        print "[" PROCINFO["pid"] "] > HTTP/1.1 200 Vale";
         print "HTTP/1.1 200 Vale" |& canal;
+        print "[" PROCINFO["pid"] "] > Connection: close";
         print "Connection: close" |& canal;
         acabacli(canal);
 

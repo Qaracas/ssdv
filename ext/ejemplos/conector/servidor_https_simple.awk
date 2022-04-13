@@ -52,14 +52,13 @@ BEGIN {
     lisautor(canalTLS, "certificados/certificado_ac.pem");
 
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Esperando petición...";
         traepcli(canalTLS, cli);
-        print "[" PROCINFO["pid"] "]", "Petición recibida desde " \
-            cli["dir"] ", puerto " cli["pto"] ".";
+        print "[" PROCINFO["pid"] "]",
+            "Petición recibida desde " cli["dir"] ":" cli["pto"];
 
         # Procesar petición
         salir = 0;
-        while ((canalTLS |& getline) > 0) {
+        while (resul = (canalTLS |& getline)) {
             print "<", $0;
             if ($1 == "GET" && $2 == "/salir")
                 salir = 1;
@@ -67,13 +66,17 @@ BEGIN {
                 break;
         }
 
+        if (resul < 0) {
+            print ERRNO;
+            break;
+        }
+
         # Mandar respuesta
         print "[" PROCINFO["pid"] "]",
-              "Respuesta enviada hacia " \
-              cli["dir"] ", puerto " cli["pto"] ".";
+            "Respuesta enviada hacia " cli["dir"] ":" cli["pto"];
         print "> HTTP/1.1 200 Vale";
         print "HTTP/1.1 200 Vale" |& canalTLS;
-        print "> Connection: close"
+        print "> Connection: close";
         print "Connection: close" |& canalTLS;
 
         acabacli(canalTLS);

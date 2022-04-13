@@ -49,33 +49,40 @@ BEGIN {
     creatoma(canalTcpIP);
 
     while (1) {
-        print "[" PROCINFO["pid"] "]", "Padre: espero petición...";
         traepcli(canalTcpIP, cli);
-        print "[" PROCINFO["pid"] "]", "Padre: recibida petición desde " \
-            cli["dir"] ", puerto " cli["pto"] ".";
 
         if ((pid = fork()) == 0) {
             # Rama hija
-
             # Cerrar toma de escucha en rama hija
             acabasrv(canalTcpIP);
             break;
         }
 
         # Continúa rama padre
-
         # Cerrar nueva toma E/S con cliente en rama padre
         acabacli(canalTcpIP);
     }
 
-    print "[" PROCINFO["pid"] "]", "Hijo: la atiendo y salgo.";
-    while ((canalTcpIP |& getline) > 0) {
-        print "[" PROCINFO["pid"] "] <", $0;
+    # Procesar petición
+    print "[" PROCINFO["pid"] "]",
+        "Petición recibida desde " cli["dir"] ":" cli["pto"];
+    while (resul = (canalTcpIP |& getline)) {
+        print "<", $0;
         if (length($0) == 0)
             break;
     }
 
+    if (resul < 0) {
+        print ERRNO;
+        exit resul;
+    }
+
+    # Mandar respuesta
+    print "[" PROCINFO["pid"] "]",
+        "Respuesta enviada hacia " cli["dir"] ":" cli["pto"];
+    print "> HTTP/1.1 200 Vale";
     print "HTTP/1.1 200 Vale" |& canalTcpIP;
+    print "> Connection: close";
     print "Connection: close" |& canalTcpIP;
 
     acabacli(canalTcpIP);
