@@ -201,8 +201,15 @@ reintenta_recibir_linea:
                     return NULL;
                 goto reintenta_recibir_linea;
             case CNTR_TOPE_RESTO:
-                return tope->datos;
             case CNTR_TOPE_VACIO:
+                /* Tamaño del registro */
+                toma->pila->lgtreg = tope->ldatos;
+
+                /* Variable RT: El final del registro es el final de flujo */
+                *sdrt = NULL;
+                *tsr = 0;
+
+                return tope->datos;
             case CNTR_ERROR:
                 return NULL;
         }
