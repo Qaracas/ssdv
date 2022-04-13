@@ -618,7 +618,7 @@ conector_recibe_datos(char **out, awk_input_buf_t *tpent, int *errcode,
         update_ERRNO_string(cntr_msj_error("%s %s",
                                      "conector_recibe_datos:",
                                      cntr_error.descripción));
-        return EOF;
+        return CNTR_ERROR;
     }
 
     return rt->toma->pila->lgtreg;
